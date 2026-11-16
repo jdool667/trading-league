@@ -177,6 +177,8 @@ let pendingDelete = null;
 
 const $ = (id) => document.getElementById(id);
 const gbp = (n) => (n < 0 ? "-£" : "£") + Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Per-share prices keep up to 4 decimals so they match Trading 212 (e.g. £3.506).
+const gbpShare = (n) => "£" + n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 const signedGbp = (n) => (n > 0 ? "+" : "") + gbp(n);
 const pct = (n) => (n > 0 ? "+" : "") + (n * 100).toFixed(2) + "%";
 const shares = (n) => Number(n.toFixed(6)).toLocaleString("en-GB", { maximumFractionDigits: 6 });
@@ -260,7 +262,7 @@ function render() {
   // Holdings
   const open = stats.flatMap((s) => s.open).filter((o) => holdFilter === "All" || o.trader === holdFilter);
   $("holdings").innerHTML = open.length ? open.map((o) => `<tr><td>${o.trader}</td><td><strong>${esc(o.ticker)}</strong></td>
-    <td class="r num">${shares(o.qty)}</td><td class="r num">${gbp(o.avg)}</td><td class="r num">${gbp(o.price)}</td>
+    <td class="r num">${shares(o.qty)}</td><td class="r num">${gbpShare(o.avg)}</td><td class="r num">${gbpShare(o.price)}</td>
     <td class="r num">${gbp(o.value)}</td><td class="r num ${tone(o.pnl)}">${signedGbp(o.pnl)} <span class="muted">${pct(o.pnl / (o.avg * o.qty))}</span></td></tr>`).join("")
     : `<tr><td colspan="7" class="empty">No open positions.</td></tr>`;
 
@@ -268,7 +270,7 @@ function render() {
   const log = sortedTrades().reverse().filter((t) => logFilter === "All" || t.trader === logFilter);
   $("log").innerHTML = log.length ? log.map((t) => `<tr><td class="num">${new Date(t.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" })}</td>
     <td>${t.trader}</td><td><span class="tag ${t.side}">${t.side}</span></td><td><strong>${esc(t.ticker)}</strong></td>
-    <td class="r num">${shares(t.qty)}</td><td class="r num">${gbp(t.price)}</td><td class="r num">${gbp(t.qty * t.price)}</td>
+    <td class="r num">${shares(t.qty)}</td><td class="r num">${gbpShare(t.price)}</td><td class="r num">${gbp(t.qty * t.price)}</td>
     <td class="r"><button class="del${pendingDelete === t.id ? " confirm" : ""}" data-id="${t.id}">${pendingDelete === t.id ? "Confirm delete" : "Delete"}</button></td></tr>`).join("")
     : `<tr><td colspan="8" class="empty">No trades yet. Log the first one above.</td></tr>`;
 }
@@ -289,7 +291,7 @@ function setSide(s) {
 
 function updateTotal() {
   const q = parseFloat($("fQty").value), total = parseFloat($("fTotal").value);
-  $("fPrice").value = q > 0 && total > 0 ? gbp(total / q) : "";
+  $("fPrice").value = q > 0 && total > 0 ? gbpShare(total / q) : "";
 }
 
 // Ticker check: shows the company so people can see they've got the right one.
@@ -357,8 +359,8 @@ async function submitTrade(e) {
       <dt>Company</dt><dd>${esc(ticker)}${match ? " · " + esc(match.name) + " (" + esc(match.exchange) + ")" : " · not found, so no live price"}</dd>
       <dt>Shares</dt><dd class="num">${shares(qty)}</dd>
       <dt>${side === "buy" ? "Total paid" : "Total received"}</dt><dd class="num">${gbp(total)}</dd>
-      <dt>Price per share</dt><dd class="num">${gbp(price)}</dd>
-      ${match?.price ? `<dt>Price now</dt><dd class="num">${gbp(match.price)}</dd>` : ""}
+      <dt>Price per share</dt><dd class="num">${gbpShare(price)} <span class="muted">(£ total ÷ shares)</span></dd>
+      ${match?.price ? `<dt>Price now</dt><dd class="num">${gbpShare(match.price)}</dd>` : ""}
       <dt>Date</dt><dd>${dateText}</dd>
     </dl>
     ${far ? `<p class="warn">The price per share is very different from today's price. Check Shares and Total match the order in Trading 212.</p>` : ""}
@@ -389,7 +391,7 @@ async function saveTrade() {
   try {
     await post("trade", t);
     closeConfirm();
-    showMsg(`Saved: ${t.trader} ${t.side === "buy" ? "bought" : "sold"} ${shares(t.qty)} ${t.ticker} at ${gbp(t.price)} a share.`, "ok");
+    showMsg(`Saved: ${t.trader} ${t.side === "buy" ? "bought" : "sold"} ${shares(t.qty)} ${t.ticker} at ${gbpShare(t.price)} a share.`, "ok");
     $("fQty").value = ""; $("fTotal").value = ""; $("fTicker").value = ""; runLookup(""); updateTotal();
   } catch (err) {
     closeConfirm();
