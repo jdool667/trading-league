@@ -6,6 +6,8 @@
  *   POST {action: "trade",  pass, trader, side, ticker, qty, price, date}
  *   POST {action: "delete", pass, id}
  *   POST {action: "price",  pass, ticker, price}
+ *   POST {action: "suggest", pass, author, text}
+ *   POST {action: "reply",   pass, admin, id, reply}   (admin = secret ADMIN_PASS)
  *
  * Writes need the shared passphrase (secret PASS). Every reply is the full state.
  */
@@ -63,7 +65,8 @@ async function loadState(db) {
   for (const p of (await db.prepare("SELECT * FROM prices").all()).results) {
     prices[p.ticker] = { price: p.price, updatedAt: p.updatedAt, live: p.live === 1 };
   }
-  return { trades, prices };
+  const suggestions = (await db.prepare("SELECT * FROM suggestions ORDER BY createdAt DESC LIMIT 200").all()).results;
+  return { trades, prices, suggestions };
 }
 
 // "TSCO" could be Tractor Supply (US) or Tesco (TSCO.L), so return every match.
@@ -132,6 +135,16 @@ export default {
       if (!ticker || !(price > 0)) return reply({ error: "Invalid price" }, 400);
       await db.prepare("INSERT OR REPLACE INTO prices (ticker, price, updatedAt, live) VALUES (?, ?, ?, 0)")
         .bind(ticker, price, Date.now()).run();
+    } else if (body.action === "suggest") {
+      const text = String(body.text || "").trim().slice(0, 1000);
+      if (!TRADERS.includes(body.author) || !text) return reply({ error: "Invalid suggestion" }, 400);
+      await db.prepare("INSERT INTO suggestions (id, author, text, createdAt) VALUES (?, ?, ?, ?)")
+        .bind(crypto.randomUUID(), body.author, text, Date.now()).run();
+    } else if (body.action === "reply") {
+      if (!env.ADMIN_PASS || body.admin !== env.ADMIN_PASS) return reply({ error: "Wrong admin passphrase" }, 401);
+      const text = String(body.reply || "").trim().slice(0, 1000);
+      if (!text) return reply({ error: "Empty reply" }, 400);
+      await db.prepare("UPDATE suggestions SET reply = ?, repliedAt = ? WHERE id = ?").bind(text, Date.now(), String(body.id)).run();
     } else {
       return reply({ error: "Unknown action" }, 400);
     }

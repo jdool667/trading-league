@@ -23,3 +23,12 @@ CREATE TABLE IF NOT EXISTS meta (
 
 -- Carried over from the old KV store.
 INSERT OR IGNORE INTO trades VALUES ('ee50f5c1-5abb-4936-a5ae-719a1c2e5419', 'Jack', 'buy', 'CAPR', 1.41745005, 7.04, '2026-11-16', 1794840645436);
+
+CREATE TABLE IF NOT EXISTS suggestions (
+  id TEXT PRIMARY KEY,
+  author TEXT NOT NULL,
+  text TEXT NOT NULL,
+  createdAt INTEGER NOT NULL,
+  reply TEXT,
+  repliedAt INTEGER
+);

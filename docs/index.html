@@ -87,6 +87,16 @@ button{font:inherit;font-weight:600;cursor:pointer;border:1px solid var(--line);
 @keyframes alarm{50%{filter:brightness(1.25)}}
 .trust{flex-direction:row;display:flex;align-items:center;gap:8px;font-size:1rem;text-transform:none;letter-spacing:0;color:var(--down)}
 .trust input{width:auto}
+textarea{font:inherit;font-size:15px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 10px;width:100%;box-sizing:border-box;resize:vertical;min-height:4.5em;text-transform:none;letter-spacing:0}
+textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
+.sugg-list{display:grid;gap:10px}
+.sugg{border:1px solid var(--line);border-radius:6px;padding:12px;display:grid;gap:6px}
+.sugg p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.sugg-meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
+.sugg-reply{border-left:3px solid var(--accent);padding:6px 10px;background:var(--bg)}
+.sugg-reply strong{color:var(--accent)}
+.status-pill{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:2px 7px;border-radius:3px;background:var(--chip)}
+#replyPanel{border:2px solid var(--accent);border-radius:6px;padding:12px;display:grid;gap:10px}
 .confirm-actions{display:flex;gap:8px;flex-wrap:wrap}
 .confirm-actions button{flex:1}
 @media (prefers-reduced-motion:no-preference){button{transition:background .15s}}
@@ -170,6 +180,29 @@ button{font:inherit;font-weight:600;cursor:pointer;border:1px solid var(--line);
       <tbody id="log"></tbody>
     </table></div>
   </section>
+
+  <section>
+    <h2>Suggestions</h2>
+    <p class="muted" style="margin:0">Got an idea for the site or the rules? Post it here and Jack will reply.</p>
+    <form id="suggForm" novalidate>
+      <label>Your name<select id="sAuthor"></select></label>
+      <label id="sPassLabel">League passphrase<input id="sPass" type="password" autocomplete="current-password"></label>
+      <label style="grid-column:1/-1">Suggestion<textarea id="sText" maxlength="1000" placeholder="e.g. Add a chart of everyone's P&amp;L over time"></textarea></label>
+      <button class="primary" type="submit" id="sSubmit">Post suggestion</button>
+      <p class="msg" id="sMsg" role="status"></p>
+    </form>
+    <div id="replyPanel" hidden>
+      <div id="replyingTo"></div>
+      <label>Your reply<textarea id="rText" maxlength="1000"></textarea></label>
+      <label>Admin passphrase<input id="rAdmin" type="password" autocomplete="off"></label>
+      <div class="confirm-actions">
+        <button type="button" id="rCancel">Cancel</button>
+        <button type="button" class="primary" id="rSend">Send reply</button>
+      </div>
+      <p class="msg" id="rMsg" role="status"></p>
+    </div>
+    <div class="sugg-list" id="suggList"></div>
+  </section>
 </div>
 
 <script>
@@ -181,6 +214,7 @@ let holdFilter = "All";
 let logFilter = "All";
 const API = "https://trading-league.jdool-fpl.workers.dev";
 let pendingDelete = null;
+let suggestions = [];
 
 const $ = (id) => document.getElementById(id);
 const gbp = (n) => (n < 0 ? "-£" : "£") + Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -466,7 +500,7 @@ function init() {
 }
 
 function getPass() {
-  const typed = $("fPass").value.trim();
+  const typed = $("fPass").value.trim() || $("sPass").value.trim();
   if (typed) return typed;
   try { return localStorage.getItem("leaguePass") || ""; } catch { return ""; }
 }
@@ -474,6 +508,8 @@ function getPass() {
 function applyState(state) {
   trades = state.trades.filter((t) => TRADERS.includes(t.trader) && t.qty > 0 && t.price > 0);
   prices = state.prices || {};
+  suggestions = state.suggestions || [];
+  renderSuggestions();
   $("status").textContent = `${trades.length} trade${trades.length === 1 ? "" : "s"} logged · refreshes every 30s`;
   if (!document.activeElement?.classList.contains("price-in")) render();
 }
@@ -488,7 +524,7 @@ async function post(action, body) {
   if (data.error === "Wrong passphrase") throw new Error("wrong passphrase.");
   if (data.error) throw new Error(data.error);
   try { localStorage.setItem("leaguePass", pass); } catch {}
-  $("fPass").value = "";
+  $("fPass").value = ""; $("sPass").value = ""; $("sPassLabel").hidden = true;
   $("fPass").placeholder = "Saved on this device";
   applyState(data);
 }
@@ -502,7 +538,72 @@ async function refresh() {
   }
 }
 
+function renderSuggestions() {
+  const fmt = (t) => new Date(t).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  $("suggList").innerHTML = suggestions.length ? suggestions.map((s) => `<article class="sugg">
+    <div class="sugg-meta"><span><strong>${esc(s.author)}</strong> · ${fmt(s.createdAt)}</span><span class="status-pill">${s.reply ? "Answered" : "Waiting for reply"}</span></div>
+    <p>${esc(s.text)}</p>
+    ${s.reply ? `<div class="sugg-reply"><strong>Jack replied</strong> <span class="muted">${fmt(s.repliedAt)}</span><p>${esc(s.reply)}</p></div>` : ""}
+    <div><button type="button" class="del" data-reply="${esc(s.id)}">${s.reply ? "Edit reply" : "Reply"}</button></div>
+  </article>`).join("") : `<p class="empty">No suggestions yet.</p>`;
+}
+
+let replyingId = null;
+
+function openReply(id) {
+  const s = suggestions.find((x) => x.id === id);
+  if (!s) return;
+  replyingId = id;
+  $("replyingTo").innerHTML = `<strong>Replying to ${esc(s.author)}:</strong> <span class="muted">${esc(s.text.slice(0, 140))}${s.text.length > 140 ? "…" : ""}</span>`;
+  $("rText").value = s.reply || "";
+  try { $("rAdmin").value = localStorage.getItem("leagueAdmin") || ""; } catch {}
+  $("rMsg").textContent = "";
+  $("replyPanel").hidden = false;
+  $("rText").focus();
+}
+
+async function sendReply() {
+  const reply = $("rText").value.trim();
+  const admin = $("rAdmin").value.trim();
+  if (!reply) { $("rMsg").textContent = "Write a reply first."; $("rMsg").className = "msg err"; return; }
+  if (!admin) { $("rMsg").textContent = "Enter the admin passphrase."; $("rMsg").className = "msg err"; return; }
+  $("rSend").disabled = true;
+  try {
+    await post("reply", { id: replyingId, reply, admin });
+    try { localStorage.setItem("leagueAdmin", admin); } catch {}
+    $("replyPanel").hidden = true;
+    replyingId = null;
+  } catch (err) {
+    $("rMsg").textContent = "Couldn't send: " + err.message;
+    $("rMsg").className = "msg err";
+  }
+  $("rSend").disabled = false;
+}
+
+async function submitSuggestion(e) {
+  e.preventDefault();
+  const author = $("sAuthor").value;
+  const text = $("sText").value.trim();
+  const msg = (t, k) => { $("sMsg").textContent = t; $("sMsg").className = "msg " + (k || ""); };
+  if (!text) return msg("Write your suggestion first.", "err");
+  $("sSubmit").disabled = true;
+  try {
+    await post("suggest", { author, text });
+    $("sText").value = "";
+    msg("Posted. Thanks!", "ok");
+  } catch (err) {
+    msg("Couldn't post: " + err.message, "err");
+  }
+  $("sSubmit").disabled = false;
+}
+
 function connect() {
+  $("sAuthor").innerHTML = TRADERS.map((n) => `<option>${n}</option>`).join("");
+  try { if (localStorage.getItem("leaguePass")) $("sPassLabel").hidden = true; } catch {}
+  $("suggForm").onsubmit = submitSuggestion;
+  $("suggList").onclick = (e) => { if (e.target.dataset.reply) openReply(e.target.dataset.reply); };
+  $("rCancel").onclick = () => { $("replyPanel").hidden = true; replyingId = null; };
+  $("rSend").onclick = sendReply;
   try { if (localStorage.getItem("leaguePass")) $("fPass").placeholder = "Saved on this device"; } catch {}
   refresh();
   setInterval(refresh, 30000);
