@@ -66,6 +66,15 @@ button{font:inherit;font-weight:600;cursor:pointer;border:1px solid var(--line);
 .tag.buy{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}
 .tag.sell{background:color-mix(in srgb,var(--down) 18%,transparent);color:var(--down)}
 #status{margin:0}
+.guide{border:1px solid var(--line);border-radius:4px;padding:10px 14px;background:var(--bg)}
+.guide summary{cursor:pointer;font-weight:600}
+.guide ol{margin:10px 0 4px;padding-left:1.3em;display:grid;gap:6px}
+.guide p{margin:8px 0 0}
+.matches{grid-column:1/-1;display:grid;gap:6px;font-size:.9rem;margin-top:-4px}
+.matches:empty{display:none}
+.match{text-align:left;font-weight:500;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.match[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.match .muted{color:inherit;opacity:.75}
 @media (prefers-reduced-motion:no-preference){button{transition:background .15s}}
 </style>
 
@@ -88,17 +97,29 @@ button{font:inherit;font-weight:600;cursor:pointer;border:1px solid var(--line);
   <div class="row">
     <section>
       <h2>Log a trade</h2>
+      <details class="guide" id="guide">
+        <summary>How to log a trade from Trading 212</summary>
+        <ol>
+          <li>In Trading 212, open the order. Tap the stock, scroll down to <strong>History</strong> and tap the buy or sell, or use the History tab.</li>
+          <li>Copy <strong>Quantity</strong> into <strong>Shares</strong>. Fractions like 0.187 are fine.</li>
+          <li>Copy the <strong>£ total</strong> of the order into <strong>Total</strong>. For a sell, that's the £ you got back.</li>
+          <li>Type the ticker and tap the right company when it appears. London shares end in .L, so Tesco is TSCO.L, not TSCO (that's Tractor Supply in the US).</li>
+          <li>Ignore the "Average price" and any $ or p prices. The site works out the £ price per share for you.</li>
+        </ol>
+        <p>Made a mistake? Find it in the <strong>Trade log</strong> at the bottom, tap Delete twice, and enter it again.</p>
+      </details>
       <form id="tradeForm" novalidate>
         <div class="side" role="group" aria-label="Buy or sell">
           <button type="button" id="sideBuy" data-side="buy" aria-pressed="true">Buy</button>
           <button type="button" id="sideSell" data-side="sell" aria-pressed="false">Sell</button>
         </div>
         <label>Trader<select id="fTrader"></select></label>
-        <label>Ticker<input id="fTicker" placeholder="e.g. AAPL or VOD.L" autocomplete="off" list="tickerList"></label>
-        <label>Shares<input id="fQty" type="number" step="any" min="0" inputmode="decimal" placeholder="10"></label>
-        <label>Price per share (£)<input id="fPrice" type="number" step="any" min="0" inputmode="decimal" placeholder="150.00"></label>
+        <label>Ticker<input id="fTicker" placeholder="e.g. NVDA or TSCO.L" autocomplete="off" autocapitalize="characters" list="tickerList"></label>
+        <div class="matches" id="tickerMatches" aria-live="polite"></div>
+        <label>Shares (Quantity)<input id="fQty" type="number" step="any" min="0" inputmode="decimal" placeholder="0.187"></label>
+        <label id="fTotalLabel">Total paid (£)<input id="fTotal" type="number" step="any" min="0" inputmode="decimal" placeholder="1.00"></label>
         <label>Date<input id="fDate" type="date"></label>
-        <label>Total (£)<input id="fTotal" disabled></label>
+        <label>Price per share (£)<input id="fPrice" disabled placeholder="Worked out for you"></label>
         <label style="grid-column:1/-1">League passphrase<input id="fPass" type="password" autocomplete="current-password" placeholder="Saved on this device after first use"></label>
         <button class="primary" type="submit" id="fSubmit">Add buy</button>
         <p class="msg" id="fMsg" role="status"></p>
@@ -253,11 +274,45 @@ function setSide(s) {
   $("sideBuy").setAttribute("aria-pressed", s === "buy");
   $("sideSell").setAttribute("aria-pressed", s === "sell");
   $("fSubmit").textContent = s === "buy" ? "Add buy" : "Add sell";
+  $("fTotalLabel").firstChild.textContent = s === "buy" ? "Total paid (£)" : "Total received (£)";
 }
 
 function updateTotal() {
-  const q = parseFloat($("fQty").value), p = parseFloat($("fPrice").value);
-  $("fTotal").value = q > 0 && p > 0 ? gbp(q * p) : "";
+  const q = parseFloat($("fQty").value), total = parseFloat($("fTotal").value);
+  $("fPrice").value = q > 0 && total > 0 ? gbp(total / q) : "";
+  priceWarnedFor = "";
+}
+
+// Ticker check: shows the company so people can see they've got the right one.
+let lookup = { query: "", matches: [], chosen: "" };
+let lookupTimer = null;
+let priceWarnedFor = "";
+
+async function runLookup(query) {
+  if (!query) { lookup = { query: "", matches: [], chosen: "" }; renderMatches(); return lookup; }
+  if (lookup.query === query) return lookup;
+  $("tickerMatches").textContent = "Checking " + query + "…";
+  try {
+    const res = await fetch(API + "?lookup=" + encodeURIComponent(query));
+    const data = await res.json();
+    lookup = { query, matches: data.matches || [], chosen: "" };
+    if (lookup.matches.length === 1) lookup.chosen = lookup.matches[0].symbol;
+  } catch {
+    lookup = { query, matches: [], chosen: "", failed: true };
+  }
+  if ($("fTicker").value.trim().toUpperCase() === query) renderMatches();
+  return lookup;
+}
+
+function renderMatches() {
+  const el = $("tickerMatches");
+  const { query, matches, chosen } = lookup;
+  if (!query) { el.innerHTML = ""; return; }
+  if (lookup.failed) { el.textContent = "Couldn't check that ticker right now. You can still save it."; return; }
+  if (!matches.length) { el.textContent = `No company found for ${query}. Check the ticker in Trading 212. London shares end in .L.`; return; }
+  const intro = matches.length > 1 ? `<span class="muted">${esc(query)} matches more than one company. Tap yours:</span>` : "";
+  el.innerHTML = intro + matches.map((m) => `<button type="button" class="match" data-symbol="${esc(m.symbol)}" aria-pressed="${m.symbol === chosen}">
+    <span><strong>${esc(m.symbol)}</strong> · ${esc(m.name)}</span><span class="muted">${esc(m.exchange)}${m.price ? " · " + gbp(m.price) + " now" : ""}</span></button>`).join("");
 }
 
 function showMsg(text, kind) { const m = $("fMsg"); m.textContent = text; m.className = "msg " + (kind || ""); }
@@ -265,14 +320,24 @@ function showMsg(text, kind) { const m = $("fMsg"); m.textContent = text; m.clas
 async function submitTrade(e) {
   e.preventDefault();
   const trader = $("fTrader").value;
-  const ticker = $("fTicker").value.trim().toUpperCase();
+  const typed = $("fTicker").value.trim().toUpperCase();
   const qty = parseFloat($("fQty").value);
-  const price = parseFloat($("fPrice").value);
+  const total = parseFloat($("fTotal").value);
   const date = $("fDate").value;
-  if (!ticker) return showMsg("Enter a ticker.", "err");
-  if (!(qty > 0)) return showMsg("Shares must be more than 0.", "err");
-  if (!(price > 0)) return showMsg("Price must be more than 0.", "err");
+  if (!typed) return showMsg("Enter a ticker.", "err");
+  if (!(qty > 0)) return showMsg("Enter the number of shares (Quantity in Trading 212).", "err");
+  if (!(total > 0)) return showMsg("Enter the £ total of the order.", "err");
   if (!date) return showMsg("Pick a date.", "err");
+  const found = await runLookup(typed);
+  if (found.matches.length > 1 && !found.chosen) return showMsg("Tap which company you mean, under the ticker box.", "err");
+  const match = found.matches.find((m) => m.symbol === found.chosen);
+  const ticker = match ? match.symbol : typed;
+  const price = total / qty;
+  // Catch typos like a $ price or pence: warn once if far from today's price.
+  if (match?.price && Math.abs(price / match.price - 1) > 0.4 && priceWarnedFor !== ticker + price) {
+    priceWarnedFor = ticker + price;
+    return showMsg(`That's ${gbp(price)} a share, but ${ticker} is ${gbp(match.price)} now. Check Shares and Total, or press the button again if it's right.`, "err");
+  }
   if (side === "sell") {
     const held = computeTrader(trader).positions[ticker]?.qty || 0;
     if (qty > held + 1e-9) return showMsg(`${trader} only holds ${shares(held)} ${ticker}.`, "err");
@@ -281,7 +346,7 @@ async function submitTrade(e) {
   try {
     await post("trade", { trader, side, ticker, qty, price, date });
     showMsg(`Saved: ${trader} ${side === "buy" ? "bought" : "sold"} ${shares(qty)} ${ticker} at ${gbp(price)}.`, "ok");
-    $("fQty").value = ""; $("fPrice").value = ""; updateTotal();
+    $("fQty").value = ""; $("fTotal").value = ""; $("fTicker").value = ""; runLookup(""); updateTotal();
   } catch (err) {
     showMsg("Couldn't save: " + err.message, "err");
   }
@@ -310,7 +375,19 @@ function init() {
   $("fDate").value = new Date().toISOString().slice(0, 10);
   $("sideBuy").onclick = () => setSide("buy");
   $("sideSell").onclick = () => setSide("sell");
-  $("fQty").oninput = updateTotal; $("fPrice").oninput = updateTotal;
+  $("fQty").oninput = updateTotal; $("fTotal").oninput = updateTotal;
+  $("fTicker").oninput = () => {
+    clearTimeout(lookupTimer);
+    const q = $("fTicker").value.trim().toUpperCase();
+    lookupTimer = setTimeout(() => runLookup(q), 600);
+  };
+  $("tickerMatches").onclick = (e) => {
+    const b = e.target.closest(".match");
+    if (!b) return;
+    lookup.chosen = b.dataset.symbol;
+    renderMatches();
+  };
+  try { if (!localStorage.getItem("leaguePass")) $("guide").open = true; } catch {}
   $("tradeForm").onsubmit = submitTrade;
   $("prices").addEventListener("change", (e) => { if (e.target.dataset.ticker) savePrice(e.target); });
   $("log").addEventListener("click", onLogClick);

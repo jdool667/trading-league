@@ -2,6 +2,7 @@
  * Trading League API, backed by a D1 (SQLite) database. See schema.sql.
  *
  *   GET            -> {trades, prices}   (also refreshes live prices every 5 min)
+ *   GET ?lookup=X  -> {matches: [{symbol, name, exchange, price}]}  (tries X and X.L)
  *   POST {action: "trade",  pass, trader, side, ticker, qty, price, date}
  *   POST {action: "delete", pass, id}
  *   POST {action: "price",  pass, ticker, price}
@@ -19,7 +20,8 @@ async function quote(symbol) {
     const res = await fetch(url, { headers: { "user-agent": "Mozilla/5.0" } });
     if (!res.ok) return null;
     const meta = (await res.json()).chart?.result?.[0]?.meta;
-    return meta?.regularMarketPrice ? { price: meta.regularMarketPrice, currency: meta.currency } : null;
+    if (!meta?.regularMarketPrice) return null;
+    return { price: meta.regularMarketPrice, currency: meta.currency, name: meta.longName || meta.shortName || symbol, exchange: meta.fullExchangeName || "" };
   } catch {
     return null;
   }
@@ -27,7 +29,10 @@ async function quote(symbol) {
 
 async function priceInGbp(ticker, fxCache) {
   const q = await quote(ticker);
-  if (!q) return null;
+  return q ? toGbp(q, fxCache) : null;
+}
+
+async function toGbp(q, fxCache) {
   if (q.currency === "GBP") return q.price;
   if (q.currency === "GBp" || q.currency === "GBX") return q.price / 100; // pence
   if (!(q.currency in fxCache)) fxCache[q.currency] = (await quote(q.currency + "GBP=X"))?.price || null;
@@ -61,6 +66,20 @@ async function loadState(db) {
   return { trades, prices };
 }
 
+// "TSCO" could be Tractor Supply (US) or Tesco (TSCO.L), so return every match.
+async function lookup(raw) {
+  const symbol = raw.trim().toUpperCase().slice(0, 12);
+  if (!symbol) return [];
+  const candidates = symbol.includes(".") ? [symbol] : [symbol, symbol + ".L"];
+  const matches = [];
+  const fxCache = {};
+  for (const s of candidates) {
+    const q = await quote(s);
+    if (q) matches.push({ symbol: s, name: q.name, exchange: q.exchange, price: await toGbp(q, fxCache) });
+  }
+  return matches;
+}
+
 export default {
   async fetch(request, env) {
     const db = env.DB;
@@ -75,6 +94,8 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
 
     if (request.method === "GET") {
+      const symbol = new URL(request.url).searchParams.get("lookup");
+      if (symbol !== null) return reply({ matches: await lookup(symbol) });
       await refreshQuotes(db);
       return reply(await loadState(db));
     }
