@@ -81,6 +81,12 @@ button{font:inherit;font-weight:600;cursor:pointer;border:1px solid var(--line);
 .confirm-box dt{color:var(--muted)}
 .confirm-box dd{margin:0;font-weight:600}
 .confirm-box .warn{margin:0;color:var(--down);font-weight:600}
+.big-warn{grid-column:1/-1;background:var(--down);color:var(--accent-ink);border-radius:6px;padding:16px;text-align:center;font-family:var(--display);font-size:1.6rem;line-height:1.15;text-transform:uppercase;letter-spacing:.04em}
+.big-warn small{display:block;margin-top:8px;font-family:var(--body);font-size:.9rem;line-height:1.4;text-transform:none;letter-spacing:0}
+@media (prefers-reduced-motion:no-preference){.big-warn{animation:alarm 1s steps(2,end) infinite}}
+@keyframes alarm{50%{filter:brightness(1.25)}}
+.trust{flex-direction:row;display:flex;align-items:center;gap:8px;font-size:1rem;text-transform:none;letter-spacing:0;color:var(--down)}
+.trust input{width:auto}
 .confirm-actions{display:flex;gap:8px;flex-wrap:wrap}
 .confirm-actions button{flex:1}
 @media (prefers-reduced-motion:no-preference){button{transition:background .15s}}
@@ -128,6 +134,7 @@ button{font:inherit;font-weight:600;cursor:pointer;border:1px solid var(--line);
         <label id="fTotalLabel">Total paid (£)<input id="fTotal" type="number" step="any" min="0" inputmode="decimal" placeholder="1.00"></label>
         <label>Date<input id="fDate" type="date"></label>
         <label>Price per share (£)<input id="fPrice" type="number" step="any" min="0" inputmode="decimal" placeholder="Worked out for you"></label>
+        <div class="big-warn" id="priceWarn" role="alert" hidden>⚠ Alert alert ⚠<br>Are you sure? Can you be trusted with your data?<small>You're overriding the price per share. Only do this if your Trading 212 order shows a different £ price per share. If in doubt, clear the box and let the site work it out.</small></div>
         <label style="grid-column:1/-1">League passphrase<input id="fPass" type="password" autocomplete="current-password" placeholder="Saved on this device after first use"></label>
         <button class="primary" type="submit" id="fSubmit">Add buy</button>
         <div class="confirm-box" id="confirmBox" hidden></div>
@@ -365,6 +372,8 @@ async function submitTrade(e) {
       ${match?.price ? `<dt>Price now</dt><dd class="num">${gbpShare(match.price)}</dd>` : ""}
       <dt>Date</dt><dd>${dateText}</dd>
     </dl>
+    ${priceOverridden ? `<div class="big-warn">⚠ Typed-in price ⚠<small>You overrode the price per share with ${gbpShare(price)}. The site would have used ${gbpShare(total / qty)}.</small></div>
+    <label class="trust"><input type="checkbox" id="trustMe"> I solemnly swear I can be trusted with my data</label>` : ""}
     ${far ? `<p class="warn">The price per share is very different from today's price. Check Shares and Total match the order in Trading 212.</p>` : ""}
     <div class="confirm-actions">
       <button type="button" id="cancelTrade">Go back</button>
@@ -373,6 +382,10 @@ async function submitTrade(e) {
   $("confirmBox").hidden = false;
   $("fSubmit").hidden = true;
   $("confirmTrade").onclick = saveTrade;
+  if (priceOverridden) {
+    $("confirmTrade").disabled = true;
+    $("trustMe").onchange = () => { $("confirmTrade").disabled = !$("trustMe").checked; };
+  }
   $("cancelTrade").onclick = closeConfirm;
   $("confirmTrade").focus();
 }
@@ -395,6 +408,7 @@ async function saveTrade() {
     closeConfirm();
     showMsg(`Saved: ${t.trader} ${t.side === "buy" ? "bought" : "sold"} ${shares(t.qty)} ${t.ticker} at ${gbpShare(t.price)} a share.`, "ok");
     priceOverridden = false;
+    $("priceWarn").hidden = true;
     $("fQty").value = ""; $("fTotal").value = ""; $("fTicker").value = ""; runLookup(""); updateTotal();
   } catch (err) {
     closeConfirm();
@@ -426,9 +440,10 @@ function init() {
   $("sideSell").onclick = () => setSide("sell");
   $("fQty").oninput = updateTotal; $("fTotal").oninput = updateTotal;
   // Typing a price overrides the worked-out one; clearing it switches back.
-  $("fPrice").oninput = () => { priceOverridden = $("fPrice").value.trim() !== ""; };
-  $("tradeForm").addEventListener("input", () => { if (pendingTrade) closeConfirm(); });
-  $("tradeForm").addEventListener("change", () => { if (pendingTrade) closeConfirm(); });
+  $("fPrice").oninput = () => { priceOverridden = $("fPrice").value.trim() !== ""; $("priceWarn").hidden = !priceOverridden; };
+  const editCloses = (e) => { if (pendingTrade && !$("confirmBox").contains(e.target)) closeConfirm(); };
+  $("tradeForm").addEventListener("input", editCloses);
+  $("tradeForm").addEventListener("change", editCloses);
   $("fTicker").oninput = () => {
     clearTimeout(lookupTimer);
     const q = $("fTicker").value.trim().toUpperCase();
