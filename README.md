@@ -9,3 +9,9 @@ cd worker
 npx wrangler@4.20.0 d1 execute trading-league --remote --command "SELECT id, author, text FROM suggestions WHERE reply IS NULL"
 npx wrangler@4.20.0 d1 execute trading-league --remote --command "UPDATE suggestions SET reply = 'Done!', repliedAt = unixepoch()*1000 WHERE id = '<id>'"
 ```
+
+## Testing
+End-to-end tests run against the beta site and staging data:
+```
+SHOTS=/tmp node tests/e2e.mjs
+```
