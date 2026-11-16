@@ -75,6 +75,14 @@ button{font:inherit;font-weight:600;cursor:pointer;border:1px solid var(--line);
 .match{text-align:left;font-weight:500;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .match[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .match .muted{color:inherit;opacity:.75}
+.confirm-box{grid-column:1/-1;border:2px solid var(--accent);border-radius:6px;padding:14px;display:grid;gap:10px}
+.confirm-box h3{margin:0;font-family:var(--display);font-size:1.1rem}
+.confirm-box dl{margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px}
+.confirm-box dt{color:var(--muted)}
+.confirm-box dd{margin:0;font-weight:600}
+.confirm-box .warn{margin:0;color:var(--down);font-weight:600}
+.confirm-actions{display:flex;gap:8px;flex-wrap:wrap}
+.confirm-actions button{flex:1}
 @media (prefers-reduced-motion:no-preference){button{transition:background .15s}}
 </style>
 
@@ -122,6 +130,7 @@ button{font:inherit;font-weight:600;cursor:pointer;border:1px solid var(--line);
         <label>Price per share (£)<input id="fPrice" disabled placeholder="Worked out for you"></label>
         <label style="grid-column:1/-1">League passphrase<input id="fPass" type="password" autocomplete="current-password" placeholder="Saved on this device after first use"></label>
         <button class="primary" type="submit" id="fSubmit">Add buy</button>
+        <div class="confirm-box" id="confirmBox" hidden></div>
         <p class="msg" id="fMsg" role="status"></p>
       </form>
       <datalist id="tickerList"></datalist>
@@ -270,6 +279,7 @@ function renderChips(el, current, onPick) {
 }
 
 function setSide(s) {
+  if (pendingTrade) closeConfirm();
   side = s;
   $("sideBuy").setAttribute("aria-pressed", s === "buy");
   $("sideSell").setAttribute("aria-pressed", s === "sell");
@@ -280,13 +290,11 @@ function setSide(s) {
 function updateTotal() {
   const q = parseFloat($("fQty").value), total = parseFloat($("fTotal").value);
   $("fPrice").value = q > 0 && total > 0 ? gbp(total / q) : "";
-  priceWarnedFor = "";
 }
 
 // Ticker check: shows the company so people can see they've got the right one.
 let lookup = { query: "", matches: [], chosen: "" };
 let lookupTimer = null;
-let priceWarnedFor = "";
 
 async function runLookup(query) {
   if (!query) { lookup = { query: "", matches: [], chosen: "" }; renderMatches(); return lookup; }
@@ -333,24 +341,60 @@ async function submitTrade(e) {
   const match = found.matches.find((m) => m.symbol === found.chosen);
   const ticker = match ? match.symbol : typed;
   const price = total / qty;
-  // Catch typos like a $ price or pence: warn once if far from today's price.
-  if (match?.price && Math.abs(price / match.price - 1) > 0.4 && priceWarnedFor !== ticker + price) {
-    priceWarnedFor = ticker + price;
-    return showMsg(`That's ${gbp(price)} a share, but ${ticker} is ${gbp(match.price)} now. Check Shares and Total, or press the button again if it's right.`, "err");
-  }
   if (side === "sell") {
     const held = computeTrader(trader).positions[ticker]?.qty || 0;
     if (qty > held + 1e-9) return showMsg(`${trader} only holds ${shares(held)} ${ticker}.`, "err");
   }
-  $("fSubmit").disabled = true;
+  showMsg("");
+  pendingTrade = { trader, side, ticker, qty, price, date };
+  // Catch typos like a $ price or pence: flag it if far from today's price.
+  const far = match?.price && Math.abs(price / match.price - 1) > 0.4;
+  const dateText = new Date(date).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  $("confirmBox").innerHTML = `<h3>Check this ${side} before saving</h3>
+    <dl>
+      <dt>Trader</dt><dd>${trader}</dd>
+      <dt>Action</dt><dd><span class="tag ${side}">${side}</span></dd>
+      <dt>Company</dt><dd>${esc(ticker)}${match ? " · " + esc(match.name) + " (" + esc(match.exchange) + ")" : " · not found, so no live price"}</dd>
+      <dt>Shares</dt><dd class="num">${shares(qty)}</dd>
+      <dt>${side === "buy" ? "Total paid" : "Total received"}</dt><dd class="num">${gbp(total)}</dd>
+      <dt>Price per share</dt><dd class="num">${gbp(price)}</dd>
+      ${match?.price ? `<dt>Price now</dt><dd class="num">${gbp(match.price)}</dd>` : ""}
+      <dt>Date</dt><dd>${dateText}</dd>
+    </dl>
+    ${far ? `<p class="warn">The price per share is very different from today's price. Check Shares and Total match the order in Trading 212.</p>` : ""}
+    <div class="confirm-actions">
+      <button type="button" id="cancelTrade">Go back</button>
+      <button type="button" class="primary" id="confirmTrade">Yes, save it</button>
+    </div>`;
+  $("confirmBox").hidden = false;
+  $("fSubmit").hidden = true;
+  $("confirmTrade").onclick = saveTrade;
+  $("cancelTrade").onclick = closeConfirm;
+  $("confirmTrade").focus();
+}
+
+let pendingTrade = null;
+
+function closeConfirm() {
+  pendingTrade = null;
+  $("confirmBox").hidden = true;
+  $("confirmBox").innerHTML = "";
+  $("fSubmit").hidden = false;
+}
+
+async function saveTrade() {
+  const t = pendingTrade;
+  if (!t) return;
+  $("confirmTrade").disabled = true;
   try {
-    await post("trade", { trader, side, ticker, qty, price, date });
-    showMsg(`Saved: ${trader} ${side === "buy" ? "bought" : "sold"} ${shares(qty)} ${ticker} at ${gbp(price)}.`, "ok");
+    await post("trade", t);
+    closeConfirm();
+    showMsg(`Saved: ${t.trader} ${t.side === "buy" ? "bought" : "sold"} ${shares(t.qty)} ${t.ticker} at ${gbp(t.price)} a share.`, "ok");
     $("fQty").value = ""; $("fTotal").value = ""; $("fTicker").value = ""; runLookup(""); updateTotal();
   } catch (err) {
+    closeConfirm();
     showMsg("Couldn't save: " + err.message, "err");
   }
-  $("fSubmit").disabled = false;
 }
 
 async function savePrice(input) {
@@ -376,6 +420,8 @@ function init() {
   $("sideBuy").onclick = () => setSide("buy");
   $("sideSell").onclick = () => setSide("sell");
   $("fQty").oninput = updateTotal; $("fTotal").oninput = updateTotal;
+  $("tradeForm").addEventListener("input", () => { if (pendingTrade) closeConfirm(); });
+  $("tradeForm").addEventListener("change", () => { if (pendingTrade) closeConfirm(); });
   $("fTicker").oninput = () => {
     clearTimeout(lookupTimer);
     const q = $("fTicker").value.trim().toUpperCase();
