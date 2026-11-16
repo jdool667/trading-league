@@ -295,7 +295,7 @@ let trades = [];
 let prices = {};
 let side = "buy";
 let holdFilter = "Jack";
-try { holdFilter = localStorage.getItem("portfolioOf") || "Jack"; } catch {}
+try { holdFilter = localStorage.getItem("portfolioOf") || localStorage.getItem("me") || "Jack"; } catch {}
 let logFilter = "All";
 const API = "https://trading-league-staging.jdool-fpl.workers.dev";
 let pendingDelete = null;
@@ -576,6 +576,7 @@ async function saveTrade() {
   $("confirmTrade").disabled = true;
   try {
     await post("trade", t);
+    rememberMe(t.trader);
     loadHistory();
     closeConfirm();
     showMsg(`Saved: ${t.trader} ${t.side === "buy" ? "bought" : "sold"} ${shares(t.qty)} ${t.ticker} at ${gbpShare(t.price)} a share.`, "ok");
@@ -607,6 +608,7 @@ async function onLogClick(e) {
 
 function init() {
   $("fTrader").innerHTML = TRADERS.map((n) => `<option>${n}</option>`).join("");
+  if (savedMe()) $("fTrader").value = savedMe();
   $("fDate").value = new Date().toISOString().slice(0, 10);
   $("sideBuy").onclick = () => setSide("buy");
   $("sideSell").onclick = () => setSide("sell");
@@ -644,6 +646,10 @@ function init() {
   render();
   connect();
 }
+
+// Remember who uses this device, so Trader and Your name are pre-filled next time.
+function rememberMe(name) { try { localStorage.setItem("me", name); } catch {} }
+function savedMe() { try { const n = localStorage.getItem("me"); return TRADERS.includes(n) ? n : ""; } catch { return ""; } }
 
 function getPass() {
   const typed = $("fPass").value.trim() || $("sPass").value.trim();
@@ -702,6 +708,7 @@ async function submitSuggestion(e) {
   $("sSubmit").disabled = true;
   try {
     await post("suggest", { author, text });
+    rememberMe(author);
     $("sText").value = "";
     msg("Posted. Thanks!", "ok");
   } catch (err) {
@@ -712,6 +719,7 @@ async function submitSuggestion(e) {
 
 function connect() {
   $("sAuthor").innerHTML = TRADERS.map((n) => `<option>${n}</option>`).join("");
+  if (savedMe()) $("sAuthor").value = savedMe();
   try { if (localStorage.getItem("leaguePass")) $("sPassLabel").hidden = true; } catch {}
   $("suggForm").onsubmit = submitSuggestion;
   try { if (localStorage.getItem("leaguePass")) $("fPass").placeholder = "Saved on this device"; } catch {}
