@@ -19,8 +19,12 @@
 :root[data-theme="dark"]{
   --bg:#10151d;--panel:#18202b;--fg:#e4e9f0;--muted:#94a0b2;--line:#2b3644;
   --accent:#7d97ff;--accent-ink:#0d1220;--up:#4cc98a;--down:#ff7a70;--chip:#232d3a;color-scheme:dark}
+[hidden]{display:none!important}
+:root{--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--s7:#6250d6;--s8:#e34948;--other:#9aa3af}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#0ca30c;--s7:#9085e9;--s8:#e66767;--other:#5d6878}}
+:root[data-theme="dark"]{--s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#0ca30c;--s7:#9085e9;--s8:#e66767;--other:#5d6878}
 body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
-.wrap{max-width:1080px;margin:0 auto;padding-block:28px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:24px}
+.wrap{grid-template-columns:minmax(0,1fr);max-width:1080px;margin:0 auto;padding-block:28px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:24px}
 h1,h2{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:.01em}
 h1{font-size:2rem;line-height:1.1}
 h2{font-size:1.15rem;text-transform:uppercase;letter-spacing:.06em}
@@ -66,6 +70,34 @@ button{font:inherit;font-weight:600;cursor:pointer;border:1px solid var(--line);
 .tag.buy{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}
 .tag.sell{background:color-mix(in srgb,var(--down) 18%,transparent);color:var(--down)}
 #status{margin:0}
+.board tbody tr{cursor:pointer}
+.board tbody tr:hover td{background:var(--bg)}
+@media (max-width:600px){.hide-sm{display:none}h1{font-size:1.6rem}section{padding:14px}form{grid-template-columns:minmax(0,1fr)}.side{grid-column:1}}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.tile{background:var(--bg);border-radius:6px;padding:10px 12px;display:grid;gap:2px;min-width:0}
+.tile span{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.tile strong{font-family:var(--mono);font-size:1.25rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tile small{color:var(--muted);font-family:var(--mono)}
+.charts{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
+@media (max-width:760px){.charts{grid-template-columns:minmax(0,1fr)}}
+.chart{display:grid;gap:10px;align-content:start;min-width:0}
+.chart h3{margin:0;font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.alloc{display:flex;gap:2px;height:28px}
+.alloc div{min-width:3px;height:100%}
+.alloc div:first-child{border-radius:4px 0 0 4px}.alloc div:last-child{border-radius:0 4px 4px 0}
+.alloc div:only-child{border-radius:4px}
+.legend{list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:.9rem}
+.legend li{display:grid;grid-template-columns:12px minmax(0,1fr) auto auto;gap:10px;align-items:center}
+.sw{width:12px;height:12px;border-radius:3px}
+.pl{display:grid;gap:8px;font-size:.9rem}
+.pl-row{display:grid;grid-template-columns:5.5em minmax(0,1fr) 6.5em;gap:10px;align-items:center}
+.pl-track{position:relative;height:16px}
+.pl-track::before{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--line)}
+.pl-bar{position:absolute;top:2px;bottom:2px}
+.pl-bar.up{left:50%;background:var(--up);border-radius:0 4px 4px 0}
+.pl-bar.down{right:50%;background:var(--down);border-radius:4px 0 0 4px}
+.pl-scale{display:grid;grid-template-columns:5.5em minmax(0,1fr) 6.5em;gap:10px;font-size:.72rem;color:var(--muted)}
+.pl-scale div{display:flex;justify-content:space-between}
 .guide{border:1px solid var(--line);border-radius:4px;padding:10px 14px;background:var(--bg)}
 .guide summary{cursor:pointer;font-weight:600}
 .guide ol{margin:10px 0 4px;padding-left:1.3em;display:grid;gap:6px}
@@ -96,7 +128,6 @@ textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
 .sugg-reply{border-left:3px solid var(--accent);padding:6px 10px;background:var(--bg)}
 .sugg-reply strong{color:var(--accent)}
 .status-pill{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:2px 7px;border-radius:3px;background:var(--chip)}
-#replyPanel{border:2px solid var(--accent);border-radius:6px;padding:12px;display:grid;gap:10px}
 .confirm-actions{display:flex;gap:8px;flex-wrap:wrap}
 .confirm-actions button{flex:1}
 @media (prefers-reduced-motion:no-preference){button{transition:background .15s}}
@@ -112,10 +143,10 @@ textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
   <section>
     <h2>Leaderboard</h2>
     <div class="scroll"><table class="board">
-      <thead><tr><th></th><th>Trader</th><th class="r">Total P&amp;L</th><th class="r">Return</th><th class="r">Realised</th><th class="r">Unrealised</th><th class="r">Open</th></tr></thead>
+      <thead><tr><th></th><th>Trader</th><th class="r">Total P&amp;L</th><th class="r">Return</th><th class="r hide-sm">Realised</th><th class="r hide-sm">Unrealised</th><th class="r">Open</th></tr></thead>
       <tbody id="board"></tbody>
     </table></div>
-    <p class="muted">Return = total P&amp;L ÷ the most money that trader has had in the market at once. Unrealised P&amp;L uses the latest prices below.</p>
+    <p class="muted">Return = total P&amp;L ÷ the most money that trader has had in the market at once. Unrealised P&amp;L uses live prices. Tap a name to see their portfolio.</p>
   </section>
 
   <div class="row">
@@ -163,13 +194,10 @@ textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
     </section>
   </div>
 
-  <section>
-    <h2>Holdings</h2>
+  <section id="portfolio">
+    <h2>Portfolios</h2>
     <div class="chips" id="holdChips"></div>
-    <div class="scroll"><table>
-      <thead><tr><th>Trader</th><th>Ticker</th><th class="r">Shares</th><th class="r">Avg cost</th><th class="r">Price</th><th class="r">Value</th><th class="r">P&amp;L</th></tr></thead>
-      <tbody id="holdings"></tbody>
-    </table></div>
+    <div id="portfolioBody"></div>
   </section>
 
   <section>
@@ -183,7 +211,7 @@ textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
 
   <section>
     <h2>Suggestions</h2>
-    <p class="muted" style="margin:0">Got an idea for the site or the rules? Post it here and Jack will reply.</p>
+    <p class="muted" style="margin:0">Got an idea for the site or the rules? Post it here and we'll reply.</p>
     <form id="suggForm" novalidate>
       <label>Your name<select id="sAuthor"></select></label>
       <label id="sPassLabel">League passphrase<input id="sPass" type="password" autocomplete="current-password"></label>
@@ -191,16 +219,6 @@ textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
       <button class="primary" type="submit" id="sSubmit">Post suggestion</button>
       <p class="msg" id="sMsg" role="status"></p>
     </form>
-    <div id="replyPanel" hidden>
-      <div id="replyingTo"></div>
-      <label>Your reply<textarea id="rText" maxlength="1000"></textarea></label>
-      <label>Admin passphrase<input id="rAdmin" type="password" autocomplete="off"></label>
-      <div class="confirm-actions">
-        <button type="button" id="rCancel">Cancel</button>
-        <button type="button" class="primary" id="rSend">Send reply</button>
-      </div>
-      <p class="msg" id="rMsg" role="status"></p>
-    </div>
     <div class="sugg-list" id="suggList"></div>
   </section>
 </div>
@@ -210,7 +228,8 @@ const TRADERS = ["Jack", "Perez", "Bell", "Brown", "Ethan"];
 let trades = [];
 let prices = {};
 let side = "buy";
-let holdFilter = "All";
+let holdFilter = "Jack";
+try { holdFilter = localStorage.getItem("portfolioOf") || "Jack"; } catch {}
 let logFilter = "All";
 const API = "https://trading-league.jdool-fpl.workers.dev";
 let pendingDelete = null;
@@ -278,13 +297,13 @@ function render() {
   const stats = TRADERS.map(computeTrader);
   const ranked = [...stats].sort((a, b) => b.ret - a.ret || b.total - a.total);
 
-  $("board").innerHTML = ranked.map((s, i) => `<tr>
+  $("board").innerHTML = ranked.map((s, i) => `<tr data-person="${s.name}" title="See ${s.name}'s portfolio">
     <td class="rank">${i + 1}</td>
     <td class="name">${s.name}</td>
     <td class="r num big ${tone(s.total)}">${signedGbp(s.total)}</td>
     <td class="r num big ${tone(s.ret)}">${pct(s.ret)}</td>
-    <td class="r num ${tone(s.realised)}">${signedGbp(s.realised)}</td>
-    <td class="r num ${tone(s.unrealised)}">${signedGbp(s.unrealised)}</td>
+    <td class="r num hide-sm ${tone(s.realised)}">${signedGbp(s.realised)}</td>
+    <td class="r num hide-sm ${tone(s.unrealised)}">${signedGbp(s.unrealised)}</td>
     <td class="r num">${s.open.length}</td></tr>`).join("");
 
   // Prices: every ticker someone currently holds
@@ -300,12 +319,7 @@ function render() {
   }).join("") : `<tr><td colspan="3" class="empty">No open positions yet.</td></tr>`;
   $("tickerList").innerHTML = [...new Set(trades.map((t) => t.ticker))].map((t) => `<option value="${esc(t)}">`).join("");
 
-  // Holdings
-  const open = stats.flatMap((s) => s.open).filter((o) => holdFilter === "All" || o.trader === holdFilter);
-  $("holdings").innerHTML = open.length ? open.map((o) => `<tr><td>${o.trader}</td><td><strong>${esc(o.ticker)}</strong></td>
-    <td class="r num">${shares(o.qty)}</td><td class="r num">${gbpShare(o.avg)}</td><td class="r num">${gbpShare(o.price)}</td>
-    <td class="r num">${gbp(o.value)}</td><td class="r num ${tone(o.pnl)}">${signedGbp(o.pnl)} <span class="muted">${pct(o.pnl / (o.avg * o.qty))}</span></td></tr>`).join("")
-    : `<tr><td colspan="7" class="empty">No open positions.</td></tr>`;
+  renderPortfolio(stats, ranked);
 
   // Log, newest first
   const log = sortedTrades().reverse().filter((t) => logFilter === "All" || t.trader === logFilter);
@@ -316,9 +330,58 @@ function render() {
     : `<tr><td colspan="8" class="empty">No trades yet. Log the first one above.</td></tr>`;
 }
 
-function renderChips(el, current, onPick) {
-  el.innerHTML = ["All", ...TRADERS].map((n) => `<button type="button" aria-pressed="${n === current}" data-n="${n}">${n}</button>`).join("");
-  el.onclick = (e) => { const n = e.target.dataset.n; if (n) { onPick(n); renderChips(el, n, onPick); render(); } };
+function pickPortfolio(name) {
+  holdFilter = name;
+  try { localStorage.setItem("portfolioOf", name); } catch {}
+}
+
+// Colour follows the stock: slot = order the trader first bought it, so colours don't jump around.
+function seriesColor(i) { return i < 8 ? `var(--s${i + 1})` : "var(--other)"; }
+
+function renderPortfolio(stats, ranked) {
+  const s = stats.find((x) => x.name === holdFilter) || stats[0];
+  const everTraded = Object.keys(s.positions);
+  const holdings = [...s.open].sort((a, b) => b.value - a.value);
+  const value = holdings.reduce((t, o) => t + o.value, 0);
+  const cost = holdings.reduce((t, o) => t + o.avg * o.qty, 0);
+  const rank = ranked.findIndex((x) => x.name === s.name) + 1;
+  const tiles = `<div class="tiles">
+    <div class="tile"><span>Value now</span><strong>${gbp(value)}</strong><small>${holdings.length} holding${holdings.length === 1 ? "" : "s"}</small></div>
+    <div class="tile"><span>Cost</span><strong>${gbp(cost)}</strong><small>what's in the market</small></div>
+    <div class="tile"><span>Unrealised</span><strong class="${tone(s.unrealised)}">${signedGbp(s.unrealised)}</strong><small>${cost > 0 ? pct(s.unrealised / cost) : "–"}</small></div>
+    <div class="tile"><span>Realised</span><strong class="${tone(s.realised)}">${signedGbp(s.realised)}</strong><small>from sells</small></div>
+    <div class="tile"><span>League position</span><strong>${rank} of 5</strong><small class="${tone(s.ret)}">${pct(s.ret)} return</small></div>
+  </div>`;
+  if (!holdings.length) {
+    $("portfolioBody").innerHTML = tiles + `<p class="empty">${s.name} has no open positions.</p>`;
+    return;
+  }
+  const colorOf = (t) => seriesColor(everTraded.indexOf(t));
+  const alloc = `<div class="chart"><h3>Where the money is</h3>
+    <div class="alloc" role="img" aria-label="Portfolio split by holding">${holdings.map((o) =>
+      `<div style="flex:${o.value} 1 0;background:${colorOf(o.ticker)}" title="${esc(o.ticker)}: ${gbp(o.value)} (${(o.value / value * 100).toFixed(1)}%)"></div>`).join("")}</div>
+    <ul class="legend">${holdings.map((o) => `<li><span class="sw" style="background:${colorOf(o.ticker)}"></span><strong>${esc(o.ticker)}</strong>
+      <span class="num">${gbp(o.value)}</span><span class="num muted">${(o.value / value * 100).toFixed(1)}%</span></li>`).join("")}</ul></div>`;
+  const maxAbs = Math.max(...holdings.map((o) => Math.abs(o.pnl)), 0.01);
+  const plRows = [...holdings].sort((a, b) => b.pnl - a.pnl);
+  const pl = `<div class="chart"><h3>Profit and loss by holding</h3>
+    <div class="pl">${plRows.map((o) => `<div class="pl-row" title="${esc(o.ticker)}: ${signedGbp(o.pnl)} (${pct(o.pnl / (o.avg * o.qty))})">
+      <strong>${esc(o.ticker)}</strong>
+      <div class="pl-track">${Math.abs(o.pnl) >= 0.005 ? `<div class="pl-bar ${o.pnl > 0 ? "up" : "down"}" style="width:${Math.abs(o.pnl) / maxAbs * 50}%"></div>` : ""}</div>
+      <span class="r num ${tone(o.pnl)}">${signedGbp(o.pnl)}</span></div>`).join("")}</div>
+    <div class="pl-scale"><span></span><div><span>-${gbp(maxAbs)}</span><span>£0</span><span>+${gbp(maxAbs)}</span></div><span></span></div></div>`;
+  const table = `<div class="scroll"><table>
+    <thead><tr><th>Ticker</th><th class="r">Shares</th><th class="r">Avg cost</th><th class="r">Price now</th><th class="r">Value</th><th class="r">P&amp;L</th></tr></thead>
+    <tbody>${holdings.map((o) => `<tr><td><span class="sw" style="display:inline-block;vertical-align:-1px;margin-right:6px;background:${colorOf(o.ticker)}"></span><strong>${esc(o.ticker)}</strong></td>
+      <td class="r num">${shares(o.qty)}</td><td class="r num">${gbpShare(o.avg)}</td><td class="r num">${gbpShare(o.price)}</td>
+      <td class="r num">${gbp(o.value)}</td><td class="r num ${tone(o.pnl)}">${signedGbp(o.pnl)} <span class="muted">${pct(o.pnl / (o.avg * o.qty))}</span></td></tr>`).join("")}</tbody>
+  </table></div>`;
+  $("portfolioBody").innerHTML = tiles + `<div class="charts">${alloc}${pl}</div>` + table;
+}
+
+function renderChips(el, current, onPick, withAll = true) {
+  el.innerHTML = (withAll ? ["All", ...TRADERS] : TRADERS).map((n) => `<button type="button" aria-pressed="${n === current}" data-n="${n}">${n}</button>`).join("");
+  el.onclick = (e) => { const n = e.target.dataset.n; if (n) { onPick(n); renderChips(el, n, onPick, withAll); render(); } };
 }
 
 function setSide(s) {
@@ -493,7 +556,15 @@ function init() {
   $("tradeForm").onsubmit = submitTrade;
   $("prices").addEventListener("change", (e) => { if (e.target.dataset.ticker) savePrice(e.target); });
   $("log").addEventListener("click", onLogClick);
-  renderChips($("holdChips"), holdFilter, (n) => (holdFilter = n));
+  renderChips($("holdChips"), holdFilter, pickPortfolio, false);
+  $("board").onclick = (e) => {
+    const row = e.target.closest("tr[data-person]");
+    if (!row) return;
+    pickPortfolio(row.dataset.person);
+    renderChips($("holdChips"), holdFilter, pickPortfolio, false);
+    render();
+    $("portfolio").scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   renderChips($("logChips"), logFilter, (n) => (logFilter = n));
   render();
   connect();
@@ -543,41 +614,8 @@ function renderSuggestions() {
   $("suggList").innerHTML = suggestions.length ? suggestions.map((s) => `<article class="sugg">
     <div class="sugg-meta"><span><strong>${esc(s.author)}</strong> · ${fmt(s.createdAt)}</span><span class="status-pill">${s.reply ? "Answered" : "Waiting for reply"}</span></div>
     <p>${esc(s.text)}</p>
-    ${s.reply ? `<div class="sugg-reply"><strong>Jack replied</strong> <span class="muted">${fmt(s.repliedAt)}</span><p>${esc(s.reply)}</p></div>` : ""}
-    <div><button type="button" class="del" data-reply="${esc(s.id)}">${s.reply ? "Edit reply" : "Reply"}</button></div>
+    ${s.reply ? `<div class="sugg-reply"><strong>Reply</strong> <span class="muted">${fmt(s.repliedAt)}</span><p>${esc(s.reply)}</p></div>` : ""}
   </article>`).join("") : `<p class="empty">No suggestions yet.</p>`;
-}
-
-let replyingId = null;
-
-function openReply(id) {
-  const s = suggestions.find((x) => x.id === id);
-  if (!s) return;
-  replyingId = id;
-  $("replyingTo").innerHTML = `<strong>Replying to ${esc(s.author)}:</strong> <span class="muted">${esc(s.text.slice(0, 140))}${s.text.length > 140 ? "…" : ""}</span>`;
-  $("rText").value = s.reply || "";
-  try { $("rAdmin").value = localStorage.getItem("leagueAdmin") || ""; } catch {}
-  $("rMsg").textContent = "";
-  $("replyPanel").hidden = false;
-  $("rText").focus();
-}
-
-async function sendReply() {
-  const reply = $("rText").value.trim();
-  const admin = $("rAdmin").value.trim();
-  if (!reply) { $("rMsg").textContent = "Write a reply first."; $("rMsg").className = "msg err"; return; }
-  if (!admin) { $("rMsg").textContent = "Enter the admin passphrase."; $("rMsg").className = "msg err"; return; }
-  $("rSend").disabled = true;
-  try {
-    await post("reply", { id: replyingId, reply, admin });
-    try { localStorage.setItem("leagueAdmin", admin); } catch {}
-    $("replyPanel").hidden = true;
-    replyingId = null;
-  } catch (err) {
-    $("rMsg").textContent = "Couldn't send: " + err.message;
-    $("rMsg").className = "msg err";
-  }
-  $("rSend").disabled = false;
 }
 
 async function submitSuggestion(e) {
@@ -601,9 +639,6 @@ function connect() {
   $("sAuthor").innerHTML = TRADERS.map((n) => `<option>${n}</option>`).join("");
   try { if (localStorage.getItem("leaguePass")) $("sPassLabel").hidden = true; } catch {}
   $("suggForm").onsubmit = submitSuggestion;
-  $("suggList").onclick = (e) => { if (e.target.dataset.reply) openReply(e.target.dataset.reply); };
-  $("rCancel").onclick = () => { $("replyPanel").hidden = true; replyingId = null; };
-  $("rSend").onclick = sendReply;
   try { if (localStorage.getItem("leaguePass")) $("fPass").placeholder = "Saved on this device"; } catch {}
   refresh();
   setInterval(refresh, 30000);

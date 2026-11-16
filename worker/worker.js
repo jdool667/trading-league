@@ -7,7 +7,7 @@
  *   POST {action: "delete", pass, id}
  *   POST {action: "price",  pass, ticker, price}
  *   POST {action: "suggest", pass, author, text}
- *   POST {action: "reply",   pass, admin, id, reply}   (admin = secret ADMIN_PASS)
+ *   Replies are added by hand: see README.
  *
  * Writes need the shared passphrase (secret PASS). Every reply is the full state.
  */
@@ -140,11 +140,6 @@ export default {
       if (!TRADERS.includes(body.author) || !text) return reply({ error: "Invalid suggestion" }, 400);
       await db.prepare("INSERT INTO suggestions (id, author, text, createdAt) VALUES (?, ?, ?, ?)")
         .bind(crypto.randomUUID(), body.author, text, Date.now()).run();
-    } else if (body.action === "reply") {
-      if (!env.ADMIN_PASS || body.admin !== env.ADMIN_PASS) return reply({ error: "Wrong admin passphrase" }, 401);
-      const text = String(body.reply || "").trim().slice(0, 1000);
-      if (!text) return reply({ error: "Empty reply" }, 400);
-      await db.prepare("UPDATE suggestions SET reply = ?, repliedAt = ? WHERE id = ?").bind(text, Date.now(), String(body.id)).run();
     } else {
       return reply({ error: "Unknown action" }, 400);
     }
