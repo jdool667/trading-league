@@ -130,8 +130,11 @@ th.r,td.r{text-align:right}
 .empty{color:var(--ink-2);padding:6px 0}
 
 /* Forms */
-.desk{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:40px;align-items:start}
-@media (max-width:860px){.desk{grid-template-columns:minmax(0,1fr)}}
+.desk{display:grid;grid-template-columns:minmax(0,760px);gap:40px}
+.prices{display:grid;gap:14px}
+.prices summary{cursor:pointer;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.prices summary h2{display:inline}
+.prices[open] summary{margin-bottom:14px}
 .panel{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:20px;display:grid;gap:16px}
 form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 @media (max-width:520px){form{grid-template-columns:minmax(0,1fr)}}
@@ -256,14 +259,6 @@ button{font:inherit;cursor:pointer}
       <datalist id="tickerList"></datalist>
     </section>
 
-    <section class="sec" aria-labelledby="prices-h">
-      <h2 id="prices-h">Latest prices</h2>
-      <p class="small">Prices update live about every 5 minutes, converted to £. If a ticker can't be found, type its price in by hand.</p>
-      <div class="scroll"><table>
-        <thead><tr><th>Ticker</th><th>Held by</th><th class="r">Price (£)</th></tr></thead>
-        <tbody id="prices"></tbody>
-      </table></div>
-    </section>
   </div>
 
   <section class="sec" aria-labelledby="log-h">
@@ -274,6 +269,15 @@ button{font:inherit;cursor:pointer}
       <tbody id="log"></tbody>
     </table></div>
   </section>
+
+  <details class="prices" id="pricesBox">
+    <summary><h2 id="prices-h">Prices</h2><span class="small" id="pricesSummary"></span></summary>
+    <p class="small">Prices update live about every 5 minutes, converted to £. If a ticker can't be found, type its price in here.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Ticker</th><th>Held by</th><th class="r">Price (£)</th></tr></thead>
+      <tbody id="prices"></tbody>
+    </table></div>
+  </details>
 
   <section class="sec" aria-labelledby="sugg-h">
     <h2 id="sugg-h">Suggestions</h2>
@@ -384,6 +388,11 @@ function render() {
     return `<tr><td><strong>${esc(t)}</strong><div class="small">${note}</div></td><td>${holders[t].join(", ")}</td>
       <td class="r"><input class="price-in" id="price-${esc(t)}" data-ticker="${esc(t)}" type="number" step="any" min="0" inputmode="decimal" value="${currentPrice(t)}" aria-label="Latest price for ${esc(t)}"></td></tr>`;
   }).join("") : `<tr><td colspan="3" class="empty">No open positions yet.</td></tr>`;
+  const notLive = tickers.filter((t) => !prices[t]?.live);
+  $("pricesSummary").textContent = !tickers.length ? "Nothing held yet" : notLive.length
+    ? `${tickers.length - notLive.length} live, ${notLive.length} need typing in: ${notLive.join(", ")}`
+    : `All ${tickers.length} updating live`;
+  if (notLive.length) $("pricesBox").open = true;
   $("tickerList").innerHTML = [...new Set(trades.map((t) => t.ticker))].map((t) => `<option value="${esc(t)}">`).join("");
 
   renderPortfolio(stats, ranked);
