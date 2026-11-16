@@ -112,7 +112,7 @@ button{font:inherit;font-weight:600;cursor:pointer;border:1px solid var(--line);
           <li>Copy <strong>Quantity</strong> into <strong>Shares</strong>. Fractions like 0.187 are fine.</li>
           <li>Copy the <strong>£ total</strong> of the order into <strong>Total</strong>. For a sell, that's the £ you got back.</li>
           <li>Type the ticker and tap the right company when it appears. London shares end in .L, so Tesco is TSCO.L, not TSCO (that's Tractor Supply in the US).</li>
-          <li>Ignore the "Average price" and any $ or p prices. The site works out the £ price per share for you.</li>
+          <li>Ignore the "Average price" and any $ or p prices. The site works out the £ price per share for you. If your order shows a slightly different £ price per share, you can type over it.</li>
         </ol>
         <p>Made a mistake? Find it in the <strong>Trade log</strong> at the bottom, tap Delete twice, and enter it again.</p>
       </details>
@@ -127,7 +127,7 @@ button{font:inherit;font-weight:600;cursor:pointer;border:1px solid var(--line);
         <label>Shares (Quantity)<input id="fQty" type="number" step="any" min="0" inputmode="decimal" placeholder="0.187"></label>
         <label id="fTotalLabel">Total paid (£)<input id="fTotal" type="number" step="any" min="0" inputmode="decimal" placeholder="1.00"></label>
         <label>Date<input id="fDate" type="date"></label>
-        <label>Price per share (£)<input id="fPrice" disabled placeholder="Worked out for you"></label>
+        <label>Price per share (£)<input id="fPrice" type="number" step="any" min="0" inputmode="decimal" placeholder="Worked out for you"></label>
         <label style="grid-column:1/-1">League passphrase<input id="fPass" type="password" autocomplete="current-password" placeholder="Saved on this device after first use"></label>
         <button class="primary" type="submit" id="fSubmit">Add buy</button>
         <div class="confirm-box" id="confirmBox" hidden></div>
@@ -291,12 +291,13 @@ function setSide(s) {
 
 function updateTotal() {
   const q = parseFloat($("fQty").value), total = parseFloat($("fTotal").value);
-  $("fPrice").value = q > 0 && total > 0 ? gbpShare(total / q) : "";
+  if (!priceOverridden) $("fPrice").value = q > 0 && total > 0 ? +(total / q).toFixed(4) : "";
 }
 
 // Ticker check: shows the company so people can see they've got the right one.
 let lookup = { query: "", matches: [], chosen: "" };
 let lookupTimer = null;
+let priceOverridden = false; // true once someone types their own price per share
 
 async function runLookup(query) {
   if (!query) { lookup = { query: "", matches: [], chosen: "" }; renderMatches(); return lookup; }
@@ -342,7 +343,8 @@ async function submitTrade(e) {
   if (found.matches.length > 1 && !found.chosen) return showMsg("Tap which company you mean, under the ticker box.", "err");
   const match = found.matches.find((m) => m.symbol === found.chosen);
   const ticker = match ? match.symbol : typed;
-  const price = total / qty;
+  const typedPrice = parseFloat($("fPrice").value);
+  const price = priceOverridden && typedPrice > 0 ? typedPrice : total / qty;
   if (side === "sell") {
     const held = computeTrader(trader).positions[ticker]?.qty || 0;
     if (qty > held + 1e-9) return showMsg(`${trader} only holds ${shares(held)} ${ticker}.`, "err");
@@ -359,7 +361,7 @@ async function submitTrade(e) {
       <dt>Company</dt><dd>${esc(ticker)}${match ? " · " + esc(match.name) + " (" + esc(match.exchange) + ")" : " · not found, so no live price"}</dd>
       <dt>Shares</dt><dd class="num">${shares(qty)}</dd>
       <dt>${side === "buy" ? "Total paid" : "Total received"}</dt><dd class="num">${gbp(total)}</dd>
-      <dt>Price per share</dt><dd class="num">${gbpShare(price)} <span class="muted">(£ total ÷ shares)</span></dd>
+      <dt>Price per share</dt><dd class="num">${gbpShare(price)} <span class="muted">${priceOverridden ? "(typed in)" : "(£ total ÷ shares)"}</span></dd>
       ${match?.price ? `<dt>Price now</dt><dd class="num">${gbpShare(match.price)}</dd>` : ""}
       <dt>Date</dt><dd>${dateText}</dd>
     </dl>
@@ -392,6 +394,7 @@ async function saveTrade() {
     await post("trade", t);
     closeConfirm();
     showMsg(`Saved: ${t.trader} ${t.side === "buy" ? "bought" : "sold"} ${shares(t.qty)} ${t.ticker} at ${gbpShare(t.price)} a share.`, "ok");
+    priceOverridden = false;
     $("fQty").value = ""; $("fTotal").value = ""; $("fTicker").value = ""; runLookup(""); updateTotal();
   } catch (err) {
     closeConfirm();
@@ -422,6 +425,8 @@ function init() {
   $("sideBuy").onclick = () => setSide("buy");
   $("sideSell").onclick = () => setSide("sell");
   $("fQty").oninput = updateTotal; $("fTotal").oninput = updateTotal;
+  // Typing a price overrides the worked-out one; clearing it switches back.
+  $("fPrice").oninput = () => { priceOverridden = $("fPrice").value.trim() !== ""; };
   $("tradeForm").addEventListener("input", () => { if (pendingTrade) closeConfirm(); });
   $("tradeForm").addEventListener("change", () => { if (pendingTrade) closeConfirm(); });
   $("fTicker").oninput = () => {
