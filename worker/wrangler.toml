@@ -1,0 +1,13 @@
+name = "trading-league"
+main = "worker.js"
+compatibility_date = "2026-08-20"
+
+# KV id gets added after: npx wrangler kv namespace create LEAGUE
+# Then: npx wrangler secret put PASS   (the shared league passphrase)
+
+[[kv_namespaces]]
+binding = "LEAGUE"
+id = "1b4316afa75f4f418f113264a0a8134d"
+
+[vars]
+ALLOWED_ORIGIN = "https://jdool667.github.io"

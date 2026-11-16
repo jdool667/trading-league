@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Five-Way Trading League</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one column; leaderboard first, then the trade form + prices side by side, then holdings and the log */
+:root{
+  --bg:#eef1f5;--panel:#ffffff;--fg:#17202b;--muted:#5d6878;--line:#d5dbe3;
+  --accent:#2747c9;--accent-ink:#ffffff;--up:#13804a;--down:#c2322b;--chip:#e2e7ef;
+  --display:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;
+  --body:"IBM Plex Sans",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#10151d;--panel:#18202b;--fg:#e4e9f0;--muted:#94a0b2;--line:#2b3644;
+  --accent:#7d97ff;--accent-ink:#0d1220;--up:#4cc98a;--down:#ff7a70;--chip:#232d3a;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151d;--panel:#18202b;--fg:#e4e9f0;--muted:#94a0b2;--line:#2b3644;
+  --accent:#7d97ff;--accent-ink:#0d1220;--up:#4cc98a;--down:#ff7a70;--chip:#232d3a;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1080px;margin:0 auto;padding-block:28px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:24px}
+h1,h2{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:.01em}
+h1{font-size:2rem;line-height:1.1}
+h2{font-size:1.15rem;text-transform:uppercase;letter-spacing:.06em}
+header p{margin:4px 0 0;color:var(--muted)}
+section{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:18px;min-width:0;display:grid;gap:14px;align-content:start}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px}
+@media (max-width:760px){.row{grid-template-columns:minmax(0,1fr)}}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.up{color:var(--up)}.down{color:var(--down)}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:8px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+th.r,td.r{text-align:right}
+.board td{padding-block:12px}
+.rank{font-family:var(--display);font-size:1.3rem;width:2ch;color:var(--muted)}
+.board tr:first-child .rank{color:var(--accent)}
+.name{font-weight:600;font-size:1.05rem}
+.big{font-size:1.05rem;font-weight:600}
+form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+label{display:grid;gap:4px;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+input,select{font:inherit;font-size:15px;text-transform:none;letter-spacing:0;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 10px;min-width:0;width:100%;box-sizing:border-box}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.side{display:flex;gap:0;grid-column:1/-1}
+.side button{flex:1;border-radius:0}
+.side button:first-child{border-radius:4px 0 0 4px}.side button:last-child{border-radius:0 4px 4px 0}
+button{font:inherit;font-weight:600;cursor:pointer;border:1px solid var(--line);background:var(--chip);color:var(--fg);border-radius:4px;padding:8px 14px}
+.side button[aria-pressed="true"][data-side="buy"]{background:var(--up);border-color:var(--up);color:var(--accent-ink)}
+.side button[aria-pressed="true"][data-side="sell"]{background:var(--down);border-color:var(--down);color:var(--accent-ink)}
+.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);grid-column:1/-1}
+.msg{grid-column:1/-1;margin:0;font-size:.9rem;min-height:1.4em}
+.msg.err{color:var(--down)}.msg.ok{color:var(--up)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{padding:4px 12px;border-radius:999px;font-size:.85rem}
+.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.price-in{width:7.5em;text-align:right;font-family:var(--mono)}
+.muted{color:var(--muted);font-size:.85rem}
+.empty{color:var(--muted);padding:10px 0;margin:0}
+.del{padding:3px 10px;font-size:.8rem;font-weight:500}
+.del.confirm{background:var(--down);border-color:var(--down);color:var(--accent-ink)}
+.tag{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px}
+.tag.buy{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}
+.tag.sell{background:color-mix(in srgb,var(--down) 18%,transparent);color:var(--down)}
+#status{margin:0}
+@media (prefers-reduced-motion:no-preference){button{transition:background .15s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Five-Way Trading League</h1>
+    <p>Jack, Perez, Bell, Brown and Ethan. Log every buy and sell from Trading 212 here. All amounts in £.</p>
+    <p id="status" class="muted">Connecting to the league…</p>
+  </header>
+
+  <section>
+    <h2>Leaderboard</h2>
+    <div class="scroll"><table class="board">
+      <thead><tr><th></th><th>Trader</th><th class="r">Total P&amp;L</th><th class="r">Return</th><th class="r">Realised</th><th class="r">Unrealised</th><th class="r">Open</th></tr></thead>
+      <tbody id="board"></tbody>
+    </table></div>
+    <p class="muted">Return = total P&amp;L ÷ the most money that trader has had in the market at once. Unrealised P&amp;L uses the latest prices below.</p>
+  </section>
+
+  <div class="row">
+    <section>
+      <h2>Log a trade</h2>
+      <form id="tradeForm" novalidate>
+        <div class="side" role="group" aria-label="Buy or sell">
+          <button type="button" id="sideBuy" data-side="buy" aria-pressed="true">Buy</button>
+          <button type="button" id="sideSell" data-side="sell" aria-pressed="false">Sell</button>
+        </div>
+        <label>Trader<select id="fTrader"></select></label>
+        <label>Ticker<input id="fTicker" placeholder="e.g. AAPL" autocomplete="off" list="tickerList"></label>
+        <label>Shares<input id="fQty" type="number" step="any" min="0" inputmode="decimal" placeholder="10"></label>
+        <label>Price per share (£)<input id="fPrice" type="number" step="any" min="0" inputmode="decimal" placeholder="150.00"></label>
+        <label>Date<input id="fDate" type="date"></label>
+        <label>Total (£)<input id="fTotal" disabled></label>
+        <label style="grid-column:1/-1">League passphrase<input id="fPass" type="password" autocomplete="current-password" placeholder="Saved on this device after first use"></label>
+        <button class="primary" type="submit" id="fSubmit">Add buy</button>
+        <p class="msg" id="fMsg" role="status"></p>
+      </form>
+      <datalist id="tickerList"></datalist>
+    </section>
+
+    <section>
+      <h2>Latest prices</h2>
+      <p class="muted" style="margin:0">Anyone can update a price. Until someone does, the last traded price is used.</p>
+      <div class="scroll"><table>
+        <thead><tr><th>Ticker</th><th>Held by</th><th class="r">Price (£)</th></tr></thead>
+        <tbody id="prices"></tbody>
+      </table></div>
+    </section>
+  </div>
+
+  <section>
+    <h2>Holdings</h2>
+    <div class="chips" id="holdChips"></div>
+    <div class="scroll"><table>
+      <thead><tr><th>Trader</th><th>Ticker</th><th class="r">Shares</th><th class="r">Avg cost</th><th class="r">Price</th><th class="r">Value</th><th class="r">P&amp;L</th></tr></thead>
+      <tbody id="holdings"></tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Trade log</h2>
+    <div class="chips" id="logChips"></div>
+    <div class="scroll"><table>
+      <thead><tr><th>Date</th><th>Trader</th><th></th><th>Ticker</th><th class="r">Shares</th><th class="r">Price</th><th class="r">Total</th><th></th></tr></thead>
+      <tbody id="log"></tbody>
+    </table></div>
+  </section>
+</div>
+
+<script>
+const TRADERS = ["Jack", "Perez", "Bell", "Brown", "Ethan"];
+let trades = [];
+let prices = {};
+let side = "buy";
+let holdFilter = "All";
+let logFilter = "All";
+const API = "https://trading-league.jdool-fpl.workers.dev";
+let pendingDelete = null;
+
+const $ = (id) => document.getElementById(id);
+const gbp = (n) => (n < 0 ? "-£" : "£") + Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const signedGbp = (n) => (n > 0 ? "+" : "") + gbp(n);
+const pct = (n) => (n > 0 ? "+" : "") + (n * 100).toFixed(2) + "%";
+const shares = (n) => Number(n.toFixed(6)).toLocaleString("en-GB", { maximumFractionDigits: 6 });
+const tone = (n) => (n > 0.004 ? "up" : n < -0.004 ? "down" : "");
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+function sortedTrades() {
+  return [...trades].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : (a.createdAt || 0) - (b.createdAt || 0)));
+}
+
+// Average-cost method: a sell realises (sell price - average cost) x shares.
+function computeTrader(name) {
+  const positions = {};
+  let realised = 0;
+  let inMarket = 0;
+  let peak = 0;
+  for (const t of sortedTrades()) {
+    if (t.trader !== name) continue;
+    const p = positions[t.ticker] || { qty: 0, cost: 0 };
+    if (t.side === "buy") {
+      p.qty += t.qty;
+      p.cost += t.qty * t.price;
+      inMarket += t.qty * t.price;
+    } else {
+      const avg = p.qty > 0 ? p.cost / p.qty : t.price;
+      const q = Math.min(t.qty, p.qty);
+      realised += (t.price - avg) * q;
+      p.cost -= avg * q;
+      p.qty -= q;
+      inMarket -= avg * q;
+      if (p.qty < 1e-9) { p.qty = 0; p.cost = 0; }
+    }
+    positions[t.ticker] = p;
+    if (inMarket > peak) peak = inMarket;
+  }
+  let unrealised = 0;
+  const open = [];
+  for (const [ticker, p] of Object.entries(positions)) {
+    if (p.qty <= 0) continue;
+    const price = currentPrice(ticker);
+    const value = p.qty * price;
+    unrealised += value - p.cost;
+    open.push({ trader: name, ticker, qty: p.qty, avg: p.cost / p.qty, price, value, pnl: value - p.cost });
+  }
+  const total = realised + unrealised;
+  return { name, realised, unrealised, total, ret: peak > 0 ? total / peak : 0, open, positions };
+}
+
+function currentPrice(ticker) {
+  if (prices[ticker]) return prices[ticker].price;
+  const last = sortedTrades().filter((t) => t.ticker === ticker).pop();
+  return last ? last.price : 0;
+}
+
+function render() {
+  const stats = TRADERS.map(computeTrader);
+  const ranked = [...stats].sort((a, b) => b.ret - a.ret || b.total - a.total);
+
+  $("board").innerHTML = ranked.map((s, i) => `<tr>
+    <td class="rank">${i + 1}</td>
+    <td class="name">${s.name}</td>
+    <td class="r num big ${tone(s.total)}">${signedGbp(s.total)}</td>
+    <td class="r num big ${tone(s.ret)}">${pct(s.ret)}</td>
+    <td class="r num ${tone(s.realised)}">${signedGbp(s.realised)}</td>
+    <td class="r num ${tone(s.unrealised)}">${signedGbp(s.unrealised)}</td>
+    <td class="r num">${s.open.length}</td></tr>`).join("");
+
+  // Prices: every ticker someone currently holds
+  const holders = {};
+  for (const s of stats) for (const o of s.open) (holders[o.ticker] = holders[o.ticker] || []).push(s.name);
+  const tickers = Object.keys(holders).sort();
+  $("prices").innerHTML = tickers.length ? tickers.map((t) => {
+    const saved = prices[t];
+    const note = saved ? "Updated " + new Date(saved.updatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "Last trade";
+    return `<tr><td><strong>${esc(t)}</strong><div class="muted">${note}</div></td><td>${holders[t].join(", ")}</td>
+      <td class="r"><input class="price-in" id="price-${esc(t)}" data-ticker="${esc(t)}" type="number" step="any" min="0" inputmode="decimal" value="${currentPrice(t)}" aria-label="Latest price for ${esc(t)}"></td></tr>`;
+  }).join("") : `<tr><td colspan="3" class="empty">No open positions yet.</td></tr>`;
+  $("tickerList").innerHTML = [...new Set(trades.map((t) => t.ticker))].map((t) => `<option value="${esc(t)}">`).join("");
+
+  // Holdings
+  const open = stats.flatMap((s) => s.open).filter((o) => holdFilter === "All" || o.trader === holdFilter);
+  $("holdings").innerHTML = open.length ? open.map((o) => `<tr><td>${o.trader}</td><td><strong>${esc(o.ticker)}</strong></td>
+    <td class="r num">${shares(o.qty)}</td><td class="r num">${gbp(o.avg)}</td><td class="r num">${gbp(o.price)}</td>
+    <td class="r num">${gbp(o.value)}</td><td class="r num ${tone(o.pnl)}">${signedGbp(o.pnl)} <span class="muted">${pct(o.pnl / (o.avg * o.qty))}</span></td></tr>`).join("")
+    : `<tr><td colspan="7" class="empty">No open positions.</td></tr>`;
+
+  // Log, newest first
+  const log = sortedTrades().reverse().filter((t) => logFilter === "All" || t.trader === logFilter);
+  $("log").innerHTML = log.length ? log.map((t) => `<tr><td class="num">${new Date(t.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" })}</td>
+    <td>${t.trader}</td><td><span class="tag ${t.side}">${t.side}</span></td><td><strong>${esc(t.ticker)}</strong></td>
+    <td class="r num">${shares(t.qty)}</td><td class="r num">${gbp(t.price)}</td><td class="r num">${gbp(t.qty * t.price)}</td>
+    <td class="r"><button class="del${pendingDelete === t.id ? " confirm" : ""}" data-id="${t.id}">${pendingDelete === t.id ? "Confirm delete" : "Delete"}</button></td></tr>`).join("")
+    : `<tr><td colspan="8" class="empty">No trades yet. Log the first one above.</td></tr>`;
+}
+
+function renderChips(el, current, onPick) {
+  el.innerHTML = ["All", ...TRADERS].map((n) => `<button type="button" aria-pressed="${n === current}" data-n="${n}">${n}</button>`).join("");
+  el.onclick = (e) => { const n = e.target.dataset.n; if (n) { onPick(n); renderChips(el, n, onPick); render(); } };
+}
+
+function setSide(s) {
+  side = s;
+  $("sideBuy").setAttribute("aria-pressed", s === "buy");
+  $("sideSell").setAttribute("aria-pressed", s === "sell");
+  $("fSubmit").textContent = s === "buy" ? "Add buy" : "Add sell";
+}
+
+function updateTotal() {
+  const q = parseFloat($("fQty").value), p = parseFloat($("fPrice").value);
+  $("fTotal").value = q > 0 && p > 0 ? gbp(q * p) : "";
+}
+
+function showMsg(text, kind) { const m = $("fMsg"); m.textContent = text; m.className = "msg " + (kind || ""); }
+
+async function submitTrade(e) {
+  e.preventDefault();
+  const trader = $("fTrader").value;
+  const ticker = $("fTicker").value.trim().toUpperCase();
+  const qty = parseFloat($("fQty").value);
+  const price = parseFloat($("fPrice").value);
+  const date = $("fDate").value;
+  if (!ticker) return showMsg("Enter a ticker.", "err");
+  if (!(qty > 0)) return showMsg("Shares must be more than 0.", "err");
+  if (!(price > 0)) return showMsg("Price must be more than 0.", "err");
+  if (!date) return showMsg("Pick a date.", "err");
+  if (side === "sell") {
+    const held = computeTrader(trader).positions[ticker]?.qty || 0;
+    if (qty > held + 1e-9) return showMsg(`${trader} only holds ${shares(held)} ${ticker}.`, "err");
+  }
+  $("fSubmit").disabled = true;
+  try {
+    await post("trade", { trader, side, ticker, qty, price, date });
+    showMsg(`Saved: ${trader} ${side === "buy" ? "bought" : "sold"} ${shares(qty)} ${ticker} at ${gbp(price)}.`, "ok");
+    $("fQty").value = ""; $("fPrice").value = ""; updateTotal();
+  } catch (err) {
+    showMsg("Couldn't save: " + err.message, "err");
+  }
+  $("fSubmit").disabled = false;
+}
+
+async function savePrice(input) {
+  const ticker = input.dataset.ticker;
+  const price = parseFloat(input.value);
+  if (!(price > 0) || price === prices[ticker]?.price) return;
+  try { await post("price", { ticker, price }); }
+  catch (err) { $("status").textContent = "Couldn't save that price: " + err.message; render(); }
+}
+
+async function onLogClick(e) {
+  const id = e.target.dataset.id;
+  if (!id) return;
+  if (pendingDelete !== id) { pendingDelete = id; render(); return; }
+  pendingDelete = null;
+  try { await post("delete", { id }); }
+  catch (err) { $("status").textContent = "Couldn't delete: " + err.message; render(); }
+}
+
+function init() {
+  $("fTrader").innerHTML = TRADERS.map((n) => `<option>${n}</option>`).join("");
+  $("fDate").value = new Date().toISOString().slice(0, 10);
+  $("sideBuy").onclick = () => setSide("buy");
+  $("sideSell").onclick = () => setSide("sell");
+  $("fQty").oninput = updateTotal; $("fPrice").oninput = updateTotal;
+  $("tradeForm").onsubmit = submitTrade;
+  $("prices").addEventListener("change", (e) => { if (e.target.dataset.ticker) savePrice(e.target); });
+  $("log").addEventListener("click", onLogClick);
+  renderChips($("holdChips"), holdFilter, (n) => (holdFilter = n));
+  renderChips($("logChips"), logFilter, (n) => (logFilter = n));
+  render();
+  connect();
+}
+
+function getPass() {
+  const typed = $("fPass").value.trim();
+  if (typed) return typed;
+  try { return localStorage.getItem("leaguePass") || ""; } catch { return ""; }
+}
+
+function applyState(state) {
+  trades = state.trades.filter((t) => TRADERS.includes(t.trader) && t.qty > 0 && t.price > 0);
+  prices = state.prices || {};
+  $("status").textContent = `${trades.length} trade${trades.length === 1 ? "" : "s"} logged · refreshes every 30s`;
+  if (!document.activeElement?.classList.contains("price-in")) render();
+}
+
+// Sends a write; the Worker replies with the full updated state.
+async function post(action, body) {
+  const pass = getPass();
+  if (!pass) throw new Error("enter the league passphrase first.");
+  // text/plain keeps this a "simple" request, which Apps Script needs (it can't answer CORS preflights).
+  const res = await fetch(API, { method: "POST", headers: { "content-type": "text/plain;charset=utf-8" }, body: JSON.stringify({ ...body, action, pass }) });
+  const data = await res.json().catch(() => ({ error: "server error " + res.status }));
+  if (data.error === "Wrong passphrase") throw new Error("wrong passphrase.");
+  if (data.error) throw new Error(data.error);
+  try { localStorage.setItem("leaguePass", pass); } catch {}
+  $("fPass").value = "";
+  $("fPass").placeholder = "Saved on this device";
+  applyState(data);
+}
+
+async function refresh() {
+  try {
+    const res = await fetch(API);
+    applyState(await res.json());
+  } catch {
+    $("status").textContent = "Couldn't reach the league server. Retrying in 30s.";
+  }
+}
+
+function connect() {
+  try { if (localStorage.getItem("leaguePass")) $("fPass").placeholder = "Saved on this device"; } catch {}
+  refresh();
+  setInterval(refresh, 30000);
+}
+
+init();
+</script>
