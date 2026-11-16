@@ -94,7 +94,7 @@ button{font:inherit;font-weight:600;cursor:pointer;border:1px solid var(--line);
           <button type="button" id="sideSell" data-side="sell" aria-pressed="false">Sell</button>
         </div>
         <label>Trader<select id="fTrader"></select></label>
-        <label>Ticker<input id="fTicker" placeholder="e.g. AAPL" autocomplete="off" list="tickerList"></label>
+        <label>Ticker<input id="fTicker" placeholder="e.g. AAPL or VOD.L" autocomplete="off" list="tickerList"></label>
         <label>Shares<input id="fQty" type="number" step="any" min="0" inputmode="decimal" placeholder="10"></label>
         <label>Price per share (£)<input id="fPrice" type="number" step="any" min="0" inputmode="decimal" placeholder="150.00"></label>
         <label>Date<input id="fDate" type="date"></label>
@@ -108,7 +108,7 @@ button{font:inherit;font-weight:600;cursor:pointer;border:1px solid var(--line);
 
     <section>
       <h2>Latest prices</h2>
-      <p class="muted" style="margin:0">Anyone can update a price. Until someone does, the last traded price is used.</p>
+      <p class="muted" style="margin:0">Prices update live (about every 5 minutes, converted to £). London-listed shares need .L on the ticker, e.g. VOD.L. If a ticker can't be found, type its price in by hand.</p>
       <div class="scroll"><table>
         <thead><tr><th>Ticker</th><th>Held by</th><th class="r">Price (£)</th></tr></thead>
         <tbody id="prices"></tbody>
@@ -220,7 +220,8 @@ function render() {
   const tickers = Object.keys(holders).sort();
   $("prices").innerHTML = tickers.length ? tickers.map((t) => {
     const saved = prices[t];
-    const note = saved ? "Updated " + new Date(saved.updatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "Last trade";
+    const when = saved && new Date(saved.updatedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    const note = !saved ? "Last trade" : saved.live ? "Live · " + when : "Typed in · " + when;
     return `<tr><td><strong>${esc(t)}</strong><div class="muted">${note}</div></td><td>${holders[t].join(", ")}</td>
       <td class="r"><input class="price-in" id="price-${esc(t)}" data-ticker="${esc(t)}" type="number" step="any" min="0" inputmode="decimal" value="${currentPrice(t)}" aria-label="Latest price for ${esc(t)}"></td></tr>`;
   }).join("") : `<tr><td colspan="3" class="empty">No open positions yet.</td></tr>`;

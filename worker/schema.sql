@@ -1,0 +1,25 @@
+CREATE TABLE IF NOT EXISTS trades (
+  id TEXT PRIMARY KEY,
+  trader TEXT NOT NULL,
+  side TEXT NOT NULL,
+  ticker TEXT NOT NULL,
+  qty REAL NOT NULL,
+  price REAL NOT NULL,
+  date TEXT NOT NULL,
+  createdAt INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS prices (
+  ticker TEXT PRIMARY KEY,
+  price REAL NOT NULL,
+  updatedAt INTEGER NOT NULL,
+  live INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS meta (
+  key TEXT PRIMARY KEY,
+  value INTEGER
+);
+
+-- Carried over from the old KV store.
+INSERT OR IGNORE INTO trades VALUES ('ee50f5c1-5abb-4936-a5ae-719a1c2e5419', 'Jack', 'buy', 'CAPR', 1.41745005, 7.04, '2026-11-16', 1794840645436);

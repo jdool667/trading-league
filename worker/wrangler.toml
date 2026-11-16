@@ -2,12 +2,13 @@ name = "trading-league"
 main = "worker.js"
 compatibility_date = "2026-08-20"
 
-# KV id gets added after: npx wrangler kv namespace create LEAGUE
-# Then: npx wrangler secret put PASS   (the shared league passphrase)
+# Passphrase: npx wrangler@4.20.0 secret put PASS
+# Schema:     npx wrangler@4.20.0 d1 execute trading-league --remote --file schema.sql
 
-[[kv_namespaces]]
-binding = "LEAGUE"
-id = "1b4316afa75f4f418f113264a0a8134d"
+[[d1_databases]]
+binding = "DB"
+database_name = "trading-league"
+database_id = "59161593-fc8c-470f-8695-80cd5feba9a8"
 
 [vars]
 ALLOWED_ORIGIN = "https://jdool667.github.io"
