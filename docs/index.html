@@ -168,13 +168,13 @@ button{font:inherit;cursor:pointer}
 .del.confirm{background:var(--down);border-color:var(--down);color:#fff}
 
 /* Prices (collapsed) */
-.prices{display:grid;gap:14px}
-.prices summary{cursor:pointer;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;list-style:none}
-.prices summary::-webkit-details-marker{display:none}
-.prices summary h2{display:inline}
-.prices summary h2::after{content:" +";color:var(--ink-2)}
-.prices[open] summary h2::after{content:" −"}
-.prices[open] summary{margin-bottom:14px}
+.fold{display:grid;gap:14px}
+.fold summary{cursor:pointer;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;list-style:none}
+.fold summary::-webkit-details-marker{display:none}
+.fold summary h2{display:inline}
+.fold summary h2::after{content:" +";color:var(--ink-2)}
+.fold[open] summary h2::after{content:" −"}
+.fold[open] summary{margin-bottom:14px}
 
 /* Suggestions */
 .sugg-list{display:grid;gap:14px}
@@ -231,7 +231,7 @@ button{font:inherit;cursor:pointer}
           <li>Type the ticker and tap the right company when it appears. London shares end in .L, so Tesco is TSCO.L, not TSCO (that's Tractor Supply in the US).</li>
           <li>Ignore the "Average price" and any $ or p prices. The site works out the £ price per share for you. If your order shows a slightly different £ price per share, you can type over it.</li>
         </ol>
-        <p>Made a mistake? Find it in the <strong>Trade log</strong>, tap Delete twice, and enter it again.</p>
+        <p>Made a mistake? Open the <strong>Trade log</strong> near the bottom, tap Delete twice, and enter it again.</p>
       </details>
       <form id="tradeForm" novalidate>
         <div class="side full" role="group" aria-label="Buy or sell">
@@ -256,16 +256,16 @@ button{font:inherit;cursor:pointer}
 
   </div>
 
-  <section class="sec" aria-labelledby="log-h">
-    <h2 id="log-h">Trade log</h2>
+  <details class="fold" id="logBox">
+    <summary><h2 id="log-h">Trade log</h2><span class="small" id="logSummary"></span></summary>
     <div class="chips" id="logChips"></div>
     <div class="scroll"><table>
       <thead><tr><th>Date</th><th>Trader</th><th></th><th>Ticker</th><th class="r">Shares</th><th class="r">Price</th><th class="r">Total</th><th></th></tr></thead>
       <tbody id="log"></tbody>
     </table></div>
-  </section>
+  </details>
 
-  <details class="prices" id="pricesBox">
+  <details class="fold" id="pricesBox">
     <summary><h2 id="prices-h">Prices</h2><span class="small" id="pricesSummary"></span></summary>
     <p class="small">Prices update live about every 5 minutes, converted to £. If a ticker can't be found, type its price in here.</p>
     <div class="scroll"><table>
@@ -392,6 +392,8 @@ function render() {
 
   renderPortfolio(stats, ranked);
 
+  const latest = sortedTrades().pop();
+  $("logSummary").textContent = latest ? `${trades.length} trades. Latest: ${latest.trader} ${latest.side === "buy" ? "bought" : "sold"} ${latest.ticker}` : "No trades yet";
   // Log, newest first
   const log = sortedTrades().reverse().filter((t) => logFilter === "All" || t.trader === logFilter);
   $("log").innerHTML = log.length ? log.map((t) => `<tr><td class="num">${new Date(t.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" })}</td>
