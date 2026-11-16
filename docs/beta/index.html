@@ -840,10 +840,14 @@ function renderRace() {
   const spanH = (t1 - t0) / 3600000;
   const fmtX = spanH <= 36 ? { hour: "2-digit", minute: "2-digit" } : { day: "numeric", month: "short" };
   const nx = Math.max(2, Math.min(6, Math.floor(iw / 90)));
+  // Ticks on whole hours (or whole days), evenly spaced.
+  const unit = spanH <= 36 ? 3600000 : 86400000;
+  const every = Math.max(1, Math.ceil((t1 - t0) / unit / nx)) * unit;
   let xlab = "";
-  for (let i = 0; i <= nx; i++) {
-    const t = t0 + ((t1 - t0) * i) / nx;
-    xlab += `<text x="${x(t).toFixed(1)}" y="${H - 8}" text-anchor="${i === 0 ? "start" : i === nx ? "end" : "middle"}">${new Date(t).toLocaleString("en-GB", fmtX)}</text>`;
+  for (let t = Math.ceil(t0 / every) * every; t <= t1; t += every) {
+    const px = x(t);
+    if (px > W - m.r - 20) break;
+    xlab += `<text x="${px.toFixed(1)}" y="${H - 8}" text-anchor="middle">${new Date(t).toLocaleString("en-GB", fmtX)}</text>`;
   }
 
   // Lines, plus where each face sits (pushed apart so they never overlap)
