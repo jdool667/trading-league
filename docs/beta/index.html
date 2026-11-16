@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Five-Way Trading League</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap">
+<style>
+/* Layout: one left-aligned column. The race chart opens the page; colour only ever means data
+   (a person's line, a gain, a loss). Everything else is ink on paper. */
+:root{
+  --paper:#f4f6f3;--surface:#ffffff;--field:#eaeee9;--ink:#141a17;--ink-2:#53605a;--rule:#d6dcd7;
+  --up:#16803c;--down:#c4372d;--gold:#9a6f10;
+  --p1:#2a78d6;--p2:#eb6834;--p3:#1baf7a;--p4:#eda100;--p5:#e87ba4;
+  --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--s7:#6250d6;--s8:#e34948;--other:#9aa3af;
+  --font:"Archivo","Helvetica Neue",Arial,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0f1412;--surface:#171e1b;--field:#1f2824;--ink:#e8eee9;--ink-2:#9aa8a0;--rule:#2b3531;
+  --up:#45c476;--down:#ff7b6c;--gold:#e2b04a;
+  --p1:#3987e5;--p2:#d95926;--p3:#199e70;--p4:#c98500;--p5:#d55181;
+  --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#0ca30c;--s7:#9085e9;--s8:#e66767;--other:#5d6878;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0f1412;--surface:#171e1b;--field:#1f2824;--ink:#e8eee9;--ink-2:#9aa8a0;--rule:#2b3531;
+  --up:#45c476;--down:#ff7b6c;--gold:#e2b04a;
+  --p1:#3987e5;--p2:#d95926;--p3:#199e70;--p4:#c98500;--p5:#d55181;
+  --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#0ca30c;--s7:#9085e9;--s8:#e66767;--other:#5d6878;
+  color-scheme:dark}
+
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.5;font-stretch:100%}
+.wrap{max-width:1100px;margin:0 auto;padding-block:20px 80px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;grid-template-columns:minmax(0,1fr);gap:64px}
+.wrap>*{min-width:0}
+h1,h2,h3{margin:0;font-stretch:125%;text-wrap:balance;line-height:1.05}
+h1{font-size:clamp(2.2rem,7vw,4.6rem);font-weight:850;letter-spacing:-.02em}
+h2{font-size:clamp(1.4rem,3.4vw,1.9rem);font-weight:800;letter-spacing:-.01em}
+h3{font-size:1rem;font-weight:750;font-stretch:112%}
+p{margin:0}
+.lede{color:var(--ink-2);max-width:62ch}
+.small{font-size:.85rem;color:var(--ink-2)}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.up{color:var(--up)}.down{color:var(--down)}
+.sec{display:grid;gap:18px;align-content:start}
+.sec>*{min-width:0}
+.sec-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+
+/* Test banner */
+.beta{background:var(--ink);color:var(--paper);font-size:.85rem;padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));text-align:center}
+
+/* Header */
+.top{display:grid;gap:14px}
+.top-row{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.jump{font:inherit;font-weight:700;font-stretch:112%;background:var(--ink);color:var(--paper);border-radius:999px;padding:10px 18px;text-decoration:none;white-space:nowrap}
+
+/* Race chart */
+.race{position:relative;touch-action:pan-y}
+.race svg{display:block;width:100%;overflow:visible}
+.race .grid line{stroke:var(--rule);stroke-width:1}
+.race .zero{stroke:var(--ink-2);stroke-width:1.25}
+.race .axis text{fill:var(--ink-2);font-size:12px;font-family:var(--font)}
+.race .line{fill:none;stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.race .lead{stroke-width:1.5;stroke-dasharray:2 3}
+.race .cross{stroke:var(--ink-2);stroke-width:1}
+.face{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;border:3px solid var(--rule);background:var(--field);transition:top .4s ease}
+.face img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
+.face.up{border-color:var(--up)}.face.down{border-color:var(--down)}
+.face .mood{position:absolute;right:-8px;bottom:-6px;font-size:18px;line-height:1}
+.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:8px 10px;font-size:.85rem;box-shadow:0 6px 20px rgba(0,0,0,.12);min-width:150px;z-index:2}
+.tip div{display:flex;justify-content:space-between;gap:12px}
+.key{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:.92rem}
+.key span{display:inline-flex;align-items:center;gap:7px}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+@media (prefers-reduced-motion:no-preference){.race .line.draw{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw 1.4s ease-out forwards}}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+/* Tables */
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{font-size:.8rem;color:var(--ink-2);text-align:left;font-weight:600;padding:8px 10px;border-bottom:1.5px solid var(--ink)}
+td{padding:10px;border-bottom:1px solid var(--rule)}
+th.r,td.r{text-align:right}
+.mini{display:inline-flex;align-items:center;gap:10px;font-weight:700}
+.mini img{width:30px;height:30px;border-radius:50%;object-fit:cover;flex:none}
+.standings td{padding-block:12px}
+.standings tbody tr{cursor:pointer}
+.standings tbody tr:hover td{background:var(--field)}
+.pos{font-stretch:125%;font-weight:850;font-size:1.3rem;width:2.2ch;color:var(--ink-2)}
+.standings tr:first-child .pos{color:var(--gold)}
+.big{font-size:1.1rem;font-weight:700}
+@media (max-width:640px){.hide-sm{display:none}}
+
+/* Chips (person pickers) */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{font:inherit;font-size:.92rem;font-weight:650;border:1.5px solid var(--rule);background:transparent;color:var(--ink);border-radius:999px;padding:5px 14px 5px 5px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.chips button.plain{padding-left:14px}
+.chips button img{width:26px;height:26px;border-radius:50%;object-fit:cover}
+.chips button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+
+/* Portfolio */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.tile{background:var(--field);border-radius:10px;padding:12px 14px;display:grid;gap:2px;min-width:0}
+.tile span{font-size:.82rem;color:var(--ink-2)}
+.tile strong{font-size:1.4rem;font-weight:800;font-stretch:110%;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tile small{color:var(--ink-2);font-size:.82rem}
+@media (max-width:640px){.tile:last-child{grid-column:1/-1}}
+.charts{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px}
+@media (max-width:760px){.charts{grid-template-columns:minmax(0,1fr)}}
+.chart{display:grid;gap:12px;align-content:start;min-width:0}
+.alloc{display:flex;gap:2px;height:30px}
+.alloc div{min-width:3px}
+.alloc div:first-child{border-radius:5px 0 0 5px}.alloc div:last-child{border-radius:0 5px 5px 0}.alloc div:only-child{border-radius:5px}
+.legend{list-style:none;margin:0;padding:0;display:grid;gap:7px;font-size:.92rem}
+.legend li{display:grid;grid-template-columns:12px minmax(0,1fr) auto 4.5em;gap:10px;align-items:center}
+.legend li span:last-child{text-align:right;color:var(--ink-2)}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.pl{display:grid;gap:9px;font-size:.92rem}
+.pl-row{display:grid;grid-template-columns:5.5em minmax(0,1fr) 6em;gap:10px;align-items:center}
+.pl-track{position:relative;height:16px}
+.pl-track::before{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--ink-2)}
+.pl-bar{position:absolute;top:2px;bottom:2px}
+.pl-bar.up{left:50%;background:var(--up);border-radius:0 4px 4px 0}
+.pl-bar.down{right:50%;background:var(--down);border-radius:4px 0 0 4px}
+.pl-scale{display:grid;grid-template-columns:5.5em minmax(0,1fr) 6em;gap:10px;font-size:.75rem;color:var(--ink-2)}
+.pl-scale div{display:flex;justify-content:space-between}
+.empty{color:var(--ink-2);padding:6px 0}
+
+/* Forms */
+.desk{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:40px;align-items:start}
+@media (max-width:860px){.desk{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:14px;padding:20px;display:grid;gap:16px}
+form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:520px){form{grid-template-columns:minmax(0,1fr)}}
+.full{grid-column:1/-1}
+label{display:grid;gap:5px;font-size:.85rem;font-weight:600;color:var(--ink-2)}
+input,select,textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--field);border:1.5px solid transparent;border-radius:8px;padding:10px 12px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:5em}
+input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{outline:2.5px solid var(--p1);outline-offset:2px}
+button{font:inherit;cursor:pointer}
+.side{display:grid;grid-template-columns:1fr 1fr;background:var(--field);border-radius:10px;padding:4px;gap:4px}
+.side button{border:0;background:transparent;color:var(--ink-2);font-weight:750;font-stretch:112%;padding:9px;border-radius:7px}
+.side button[aria-pressed="true"][data-side="buy"]{background:var(--up);color:#fff}
+.side button[aria-pressed="true"][data-side="sell"]{background:var(--down);color:#fff}
+.primary{background:var(--ink);color:var(--paper);border:0;border-radius:10px;padding:13px 16px;font-weight:750;font-stretch:112%;font-size:1rem}
+.primary:disabled{opacity:.45;cursor:not-allowed}
+.secondary{background:transparent;color:var(--ink);border:1.5px solid var(--rule);border-radius:10px;padding:12px 16px;font-weight:650}
+.msg{min-height:1.4em;font-size:.92rem}
+.msg.err{color:var(--down)}.msg.ok{color:var(--up)}
+.guide{background:var(--field);border-radius:10px;padding:12px 16px}
+.guide summary{cursor:pointer;font-weight:700}
+.guide ol{margin:10px 0 6px;padding-left:1.3em;display:grid;gap:7px}
+.matches{display:grid;gap:6px;font-size:.9rem}
+.matches:empty{display:none}
+.match{text-align:left;background:var(--field);border:1.5px solid var(--rule);color:var(--ink);border-radius:8px;padding:9px 12px;display:grid;gap:2px}
+.match small{color:var(--ink-2)}
+.match[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.confirm-box{border:2px solid var(--ink);border-radius:12px;padding:16px;display:grid;gap:12px}
+.confirm-box dl{margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 16px}
+.confirm-box dt{color:var(--ink-2)}
+.confirm-box dd{margin:0;font-weight:650;min-width:0}
+.confirm-box .warn{color:var(--down);font-weight:650}
+.confirm-actions{display:grid;grid-template-columns:1fr 1.4fr;gap:10px}
+.big-warn{background:var(--down);color:#fff;border-radius:10px;padding:16px;text-align:center;font-stretch:125%;font-weight:850;font-size:1.5rem;line-height:1.15}
+.big-warn small{display:block;margin-top:8px;font-stretch:100%;font-weight:500;font-size:.9rem;line-height:1.4}
+@media (prefers-reduced-motion:no-preference){.big-warn{animation:alarm 1s steps(2,end) infinite}}
+@keyframes alarm{50%{filter:brightness(1.2)}}
+.trust{display:flex;align-items:center;gap:10px;font-size:1rem;color:var(--down)}
+.trust input{width:auto}
+.price-in{width:7.5em;text-align:right;font-variant-numeric:tabular-nums;padding:7px 10px}
+.tag{font-size:.8rem;font-weight:700;padding:2px 8px;border-radius:999px}
+.tag.buy{background:color-mix(in srgb,var(--up) 16%,transparent);color:var(--up)}
+.tag.sell{background:color-mix(in srgb,var(--down) 16%,transparent);color:var(--down)}
+.del{background:transparent;border:1.5px solid var(--rule);color:var(--ink-2);border-radius:8px;padding:4px 10px;font-size:.85rem}
+.del.confirm{background:var(--down);border-color:var(--down);color:#fff}
+
+/* Suggestions */
+.sugg-list{display:grid;gap:12px}
+.sugg{border-top:1px solid var(--rule);padding-top:12px;display:grid;gap:6px}
+.sugg p{white-space:pre-wrap;overflow-wrap:anywhere}
+.sugg-meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:.85rem;color:var(--ink-2)}
+.sugg-reply{border-left:3px solid var(--ink);padding:4px 12px}
+.pill{font-size:.78rem;font-weight:650;padding:2px 9px;border-radius:999px;background:var(--field)}
+</style>
+
+<div class="beta">Test version. Trades you add here don't touch the real league.</div>
+<div class="wrap">
+  <header class="top">
+    <div class="top-row">
+      <h1>Five-Way Trading League</h1>
+      <a class="jump" href="#log-trade">Log a trade</a>
+    </div>
+    <p class="lede">Jack, Perez, Bell, Brown and Ethan. Every buy and sell from Trading 212, valued live in £.</p>
+    <p class="small" id="status">Connecting to the league…</p>
+  </header>
+
+  <section class="sec" aria-labelledby="race-h">
+    <div class="sec-head">
+      <h2 id="race-h">Who's winning</h2>
+      <p class="small" id="raceNote">Return since each person's first trade</p>
+    </div>
+    <div class="race" id="race"><svg id="raceSvg" role="img" aria-label="Everyone's return over time"></svg></div>
+    <div class="key" id="raceKey"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="table-h">
+    <h2 id="table-h">Standings</h2>
+    <div class="scroll"><table class="standings">
+      <thead><tr><th></th><th>Trader</th><th class="r">Total P&amp;L</th><th class="r">Return</th><th class="r hide-sm">Realised</th><th class="r hide-sm">Unrealised</th><th class="r">Open</th></tr></thead>
+      <tbody id="board"></tbody>
+    </table></div>
+    <p class="small">Return is total P&amp;L divided by the most money that person has had in the market at once. Tap a name to open their portfolio.</p>
+  </section>
+
+  <section class="sec" id="portfolio" aria-labelledby="port-h">
+    <h2 id="port-h">Portfolios</h2>
+    <div class="chips" id="holdChips"></div>
+    <div class="sec" id="portfolioBody"></div>
+  </section>
+
+  <div class="desk" id="log-trade">
+    <section class="panel" aria-labelledby="trade-h">
+      <h2 id="trade-h">Log a trade</h2>
+      <details class="guide" id="guide">
+        <summary>How to log a trade from Trading 212</summary>
+        <ol>
+          <li>In Trading 212, open the order. Tap the stock, scroll down to <strong>History</strong> and tap the buy or sell, or use the History tab.</li>
+          <li>Copy <strong>Quantity</strong> into <strong>Shares</strong>. Fractions like 0.187 are fine.</li>
+          <li>Copy the <strong>£ total</strong> of the order into <strong>Total</strong>. For a sell, that's the £ you got back.</li>
+          <li>Type the ticker and tap the right company when it appears. London shares end in .L, so Tesco is TSCO.L, not TSCO (that's Tractor Supply in the US).</li>
+          <li>Ignore the "Average price" and any $ or p prices. The site works out the £ price per share for you. If your order shows a slightly different £ price per share, you can type over it.</li>
+        </ol>
+        <p>Made a mistake? Find it in the <strong>Trade log</strong>, tap Delete twice, and enter it again.</p>
+      </details>
+      <form id="tradeForm" novalidate>
+        <div class="side full" role="group" aria-label="Buy or sell">
+          <button type="button" id="sideBuy" data-side="buy" aria-pressed="true">Buy</button>
+          <button type="button" id="sideSell" data-side="sell" aria-pressed="false">Sell</button>
+        </div>
+        <label>Trader<select id="fTrader"></select></label>
+        <label>Ticker<input id="fTicker" placeholder="e.g. NVDA or TSCO.L" autocomplete="off" autocapitalize="characters" list="tickerList"></label>
+        <div class="matches full" id="tickerMatches" aria-live="polite"></div>
+        <label>Shares (Quantity)<input id="fQty" type="number" step="any" min="0" inputmode="decimal" placeholder="0.187"></label>
+        <label id="fTotalLabel">Total paid (£)<input id="fTotal" type="number" step="any" min="0" inputmode="decimal" placeholder="1.00"></label>
+        <label>Date<input id="fDate" type="date"></label>
+        <label>Price per share (£)<input id="fPrice" type="number" step="any" min="0" inputmode="decimal" placeholder="Worked out for you"></label>
+        <div class="big-warn full" id="priceWarn" role="alert" hidden>⚠ Alert alert ⚠<br>Are you sure? Can you be trusted with your data?<small>You're overriding the price per share. Only do this if your Trading 212 order shows a different £ price per share. If in doubt, clear the box and let the site work it out.</small></div>
+        <label class="full">League passphrase<input id="fPass" type="password" autocomplete="current-password" placeholder="Saved on this device after first use"></label>
+        <button class="primary full" type="submit" id="fSubmit">Add buy</button>
+        <div class="confirm-box full" id="confirmBox" hidden></div>
+        <p class="msg full" id="fMsg" role="status"></p>
+      </form>
+      <datalist id="tickerList"></datalist>
+    </section>
+
+    <section class="sec" aria-labelledby="prices-h">
+      <h2 id="prices-h">Latest prices</h2>
+      <p class="small">Prices update live about every 5 minutes, converted to £. If a ticker can't be found, type its price in by hand.</p>
+      <div class="scroll"><table>
+        <thead><tr><th>Ticker</th><th>Held by</th><th class="r">Price (£)</th></tr></thead>
+        <tbody id="prices"></tbody>
+      </table></div>
+    </section>
+  </div>
+
+  <section class="sec" aria-labelledby="log-h">
+    <h2 id="log-h">Trade log</h2>
+    <div class="chips" id="logChips"></div>
+    <div class="scroll"><table>
+      <thead><tr><th>Date</th><th>Trader</th><th></th><th>Ticker</th><th class="r">Shares</th><th class="r">Price</th><th class="r">Total</th><th></th></tr></thead>
+      <tbody id="log"></tbody>
+    </table></div>
+  </section>
+
+  <section class="sec" aria-labelledby="sugg-h">
+    <h2 id="sugg-h">Suggestions</h2>
+    <p class="small">Got an idea for the site or the rules? Post it here and we'll reply.</p>
+    <form id="suggForm" novalidate>
+      <label>Your name<select id="sAuthor"></select></label>
+      <label id="sPassLabel">League passphrase<input id="sPass" type="password" autocomplete="current-password"></label>
+      <label class="full">Suggestion<textarea id="sText" maxlength="1000" placeholder="e.g. Add a chart of everyone's P&amp;L over time"></textarea></label>
+      <button class="primary full" type="submit" id="sSubmit">Post suggestion</button>
+      <p class="msg full" id="sMsg" role="status"></p>
+    </form>
+    <div class="sugg-list" id="suggList"></div>
+  </section>
+</div>
+
+<script>
+const TRADERS = ["Jack", "Perez", "Bell", "Brown", "Ethan"];
+let trades = [];
+let prices = {};
+let side = "buy";
+let holdFilter = "Jack";
+try { holdFilter = localStorage.getItem("portfolioOf") || "Jack"; } catch {}
+let logFilter = "All";
+const API = "https://trading-league-staging.jdool-fpl.workers.dev";
+let pendingDelete = null;
+let suggestions = [];
+
+const $ = (id) => document.getElementById(id);
+const gbp = (n) => (n < 0 ? "-£" : "£") + Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Per-share prices keep up to 4 decimals so they match Trading 212 (e.g. £3.506).
+const gbpShare = (n) => "£" + n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+const signedGbp = (n) => (n > 0 ? "+" : "") + gbp(n);
+const pct = (n) => (n > 0 ? "+" : "") + (n * 100).toFixed(2) + "%";
+const shares = (n) => Number(n.toFixed(6)).toLocaleString("en-GB", { maximumFractionDigits: 6 });
+const tone = (n) => (n > 0.004 ? "up" : n < -0.004 ? "down" : "");
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+function sortedTrades() {
+  return [...trades].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : (a.createdAt || 0) - (b.createdAt || 0)));
+}
+
+// Average-cost method: a sell realises (sell price - average cost) x shares.
+function computeTrader(name) {
+  const positions = {};
+  let realised = 0;
+  let inMarket = 0;
+  let peak = 0;
+  for (const t of sortedTrades()) {
+    if (t.trader !== name) continue;
+    const p = positions[t.ticker] || { qty: 0, cost: 0 };
+    if (t.side === "buy") {
+      p.qty += t.qty;
+      p.cost += t.qty * t.price;
+      inMarket += t.qty * t.price;
+    } else {
+      const avg = p.qty > 0 ? p.cost / p.qty : t.price;
+      const q = Math.min(t.qty, p.qty);
+      realised += (t.price - avg) * q;
+      p.cost -= avg * q;
+      p.qty -= q;
+      inMarket -= avg * q;
+      if (p.qty < 1e-9) { p.qty = 0; p.cost = 0; }
+    }
+    positions[t.ticker] = p;
+    if (inMarket > peak) peak = inMarket;
+  }
+  let unrealised = 0;
+  const open = [];
+  for (const [ticker, p] of Object.entries(positions)) {
+    if (p.qty <= 0) continue;
+    const price = currentPrice(ticker);
+    const value = p.qty * price;
+    unrealised += value - p.cost;
+    open.push({ trader: name, ticker, qty: p.qty, avg: p.cost / p.qty, price, value, pnl: value - p.cost });
+  }
+  const total = realised + unrealised;
+  return { name, realised, unrealised, total, ret: peak > 0 ? total / peak : 0, open, positions };
+}
+
+function currentPrice(ticker) {
+  if (prices[ticker]) return prices[ticker].price;
+  const last = sortedTrades().filter((t) => t.ticker === ticker).pop();
+  return last ? last.price : 0;
+}
+
+function render() {
+  const stats = TRADERS.map(computeTrader);
+  const ranked = [...stats].sort((a, b) => b.ret - a.ret || b.total - a.total);
+
+  $("board").innerHTML = ranked.map((s, i) => `<tr data-person="${s.name}" title="See ${s.name}'s portfolio">
+    <td class="pos">${i + 1}</td>
+    <td><span class="mini"><img src="${FACE(s.name)}" alt="">${s.name}</span></td>
+    <td class="r num big ${tone(s.total)}">${signedGbp(s.total)}</td>
+    <td class="r num big ${tone(s.ret)}">${pct(s.ret)}</td>
+    <td class="r num hide-sm ${tone(s.realised)}">${signedGbp(s.realised)}</td>
+    <td class="r num hide-sm ${tone(s.unrealised)}">${signedGbp(s.unrealised)}</td>
+    <td class="r num">${s.open.length}</td></tr>`).join("");
+  renderRace();
+
+  // Prices: every ticker someone currently holds
+  const holders = {};
+  for (const s of stats) for (const o of s.open) (holders[o.ticker] = holders[o.ticker] || []).push(s.name);
+  const tickers = Object.keys(holders).sort();
+  $("prices").innerHTML = tickers.length ? tickers.map((t) => {
+    const saved = prices[t];
+    const when = saved && new Date(saved.updatedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    const note = !saved ? "Last trade price" : (saved.live ? "Live, " : "Typed in, ") + when;
+    return `<tr><td><strong>${esc(t)}</strong><div class="small">${note}</div></td><td>${holders[t].join(", ")}</td>
+      <td class="r"><input class="price-in" id="price-${esc(t)}" data-ticker="${esc(t)}" type="number" step="any" min="0" inputmode="decimal" value="${currentPrice(t)}" aria-label="Latest price for ${esc(t)}"></td></tr>`;
+  }).join("") : `<tr><td colspan="3" class="empty">No open positions yet.</td></tr>`;
+  $("tickerList").innerHTML = [...new Set(trades.map((t) => t.ticker))].map((t) => `<option value="${esc(t)}">`).join("");
+
+  renderPortfolio(stats, ranked);
+
+  // Log, newest first
+  const log = sortedTrades().reverse().filter((t) => logFilter === "All" || t.trader === logFilter);
+  $("log").innerHTML = log.length ? log.map((t) => `<tr><td class="num">${new Date(t.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" })}</td>
+    <td>${t.trader}</td><td><span class="tag ${t.side}">${t.side === "buy" ? "Buy" : "Sell"}</span></td><td><strong>${esc(t.ticker)}</strong></td>
+    <td class="r num">${shares(t.qty)}</td><td class="r num">${gbpShare(t.price)}</td><td class="r num">${gbp(t.qty * t.price)}</td>
+    <td class="r"><button class="del${pendingDelete === t.id ? " confirm" : ""}" data-id="${t.id}">${pendingDelete === t.id ? "Confirm delete" : "Delete"}</button></td></tr>`).join("")
+    : `<tr><td colspan="8" class="empty">No trades yet. Log the first one above.</td></tr>`;
+}
+
+function pickPortfolio(name) {
+  holdFilter = name;
+  try { localStorage.setItem("portfolioOf", name); } catch {}
+}
+
+// Colour follows the stock: slot = order the trader first bought it, so colours don't jump around.
+function seriesColor(i) { return i < 8 ? `var(--s${i + 1})` : "var(--other)"; }
+
+function renderPortfolio(stats, ranked) {
+  const s = stats.find((x) => x.name === holdFilter) || stats[0];
+  const everTraded = Object.keys(s.positions);
+  const holdings = [...s.open].sort((a, b) => b.value - a.value);
+  const value = holdings.reduce((t, o) => t + o.value, 0);
+  const cost = holdings.reduce((t, o) => t + o.avg * o.qty, 0);
+  const rank = ranked.findIndex((x) => x.name === s.name) + 1;
+  const tiles = `<div class="tiles">
+    <div class="tile"><span>Value now</span><strong>${gbp(value)}</strong><small>${holdings.length} holding${holdings.length === 1 ? "" : "s"}</small></div>
+    <div class="tile"><span>Cost</span><strong>${gbp(cost)}</strong><small>what's in the market</small></div>
+    <div class="tile"><span>Unrealised</span><strong class="${tone(s.unrealised)}">${signedGbp(s.unrealised)}</strong><small>${cost > 0 ? pct(s.unrealised / cost) : "–"}</small></div>
+    <div class="tile"><span>Realised</span><strong class="${tone(s.realised)}">${signedGbp(s.realised)}</strong><small>from sells</small></div>
+    <div class="tile"><span>League position</span><strong>${rank} of 5</strong><small class="${tone(s.ret)}">${pct(s.ret)} return</small></div>
+  </div>`;
+  if (!holdings.length) {
+    $("portfolioBody").innerHTML = tiles + `<p class="empty">${s.name} has no open positions. Their first buy will show up here.</p>`;
+    return;
+  }
+  const colorOf = (t) => seriesColor(everTraded.indexOf(t));
+  const alloc = `<div class="chart"><h3>Where the money is</h3>
+    <div class="alloc" role="img" aria-label="Portfolio split by holding">${holdings.map((o) =>
+      `<div style="flex:${o.value} 1 0;background:${colorOf(o.ticker)}" title="${esc(o.ticker)}: ${gbp(o.value)} (${(o.value / value * 100).toFixed(1)}%)"></div>`).join("")}</div>
+    <ul class="legend">${holdings.map((o) => `<li><span class="sw" style="background:${colorOf(o.ticker)}"></span><strong>${esc(o.ticker)}</strong>
+      <span class="num">${gbp(o.value)}</span><span class="num">${(o.value / value * 100).toFixed(1)}%</span></li>`).join("")}</ul></div>`;
+  const maxAbs = Math.max(...holdings.map((o) => Math.abs(o.pnl)), 0.01);
+  const plRows = [...holdings].sort((a, b) => b.pnl - a.pnl);
+  const pl = `<div class="chart"><h3>Profit and loss by holding</h3>
+    <div class="pl">${plRows.map((o) => `<div class="pl-row" title="${esc(o.ticker)}: ${signedGbp(o.pnl)} (${pct(o.pnl / (o.avg * o.qty))})">
+      <strong>${esc(o.ticker)}</strong>
+      <div class="pl-track">${Math.abs(o.pnl) >= 0.005 ? `<div class="pl-bar ${o.pnl > 0 ? "up" : "down"}" style="width:${Math.abs(o.pnl) / maxAbs * 50}%"></div>` : ""}</div>
+      <span class="r num ${tone(o.pnl)}">${signedGbp(o.pnl)}</span></div>`).join("")}</div>
+    <div class="pl-scale"><span></span><div><span>-${gbp(maxAbs)}</span><span>£0</span><span>+${gbp(maxAbs)}</span></div><span></span></div></div>`;
+  const table = `<div class="scroll"><table>
+    <thead><tr><th>Ticker</th><th class="r">Shares</th><th class="r">Avg cost</th><th class="r">Price now</th><th class="r">Value</th><th class="r">P&amp;L</th></tr></thead>
+    <tbody>${holdings.map((o) => `<tr><td><span class="sw" style="display:inline-block;vertical-align:-1px;margin-right:6px;background:${colorOf(o.ticker)}"></span><strong>${esc(o.ticker)}</strong></td>
+      <td class="r num">${shares(o.qty)}</td><td class="r num">${gbpShare(o.avg)}</td><td class="r num">${gbpShare(o.price)}</td>
+      <td class="r num">${gbp(o.value)}</td><td class="r num ${tone(o.pnl)}">${signedGbp(o.pnl)} <span class="small">${pct(o.pnl / (o.avg * o.qty))}</span></td></tr>`).join("")}</tbody>
+  </table></div>`;
+  $("portfolioBody").innerHTML = tiles + `<div class="charts">${alloc}${pl}</div>` + table;
+}
+
+function renderChips(el, current, onPick, withAll = true) {
+  el.innerHTML = (withAll ? ["All", ...TRADERS] : TRADERS).map((n) => withAll
+    ? `<button type="button" class="plain" aria-pressed="${n === current}" data-n="${n}">${n}</button>`
+    : `<button type="button" aria-pressed="${n === current}" data-n="${n}"><img src="${FACE(n)}" alt="">${n}</button>`).join("");
+  el.onclick = (e) => { const n = e.target.closest("button")?.dataset.n; if (n) { onPick(n); renderChips(el, n, onPick, withAll); render(); } };
+}
+
+function setSide(s) {
+  if (pendingTrade) closeConfirm();
+  side = s;
+  $("sideBuy").setAttribute("aria-pressed", s === "buy");
+  $("sideSell").setAttribute("aria-pressed", s === "sell");
+  $("fSubmit").textContent = s === "buy" ? "Add buy" : "Add sell";
+  $("fTotalLabel").firstChild.textContent = s === "buy" ? "Total paid (£)" : "Total received (£)";
+}
+
+function updateTotal() {
+  const q = parseFloat($("fQty").value), total = parseFloat($("fTotal").value);
+  if (!priceOverridden) $("fPrice").value = q > 0 && total > 0 ? +(total / q).toFixed(4) : "";
+}
+
+// Ticker check: shows the company so people can see they've got the right one.
+let lookup = { query: "", matches: [], chosen: "" };
+let lookupTimer = null;
+let priceOverridden = false; // true once someone types their own price per share
+
+async function runLookup(query) {
+  if (!query) { lookup = { query: "", matches: [], chosen: "" }; renderMatches(); return lookup; }
+  if (lookup.query === query) return lookup;
+  $("tickerMatches").textContent = "Checking " + query + "…";
+  try {
+    const res = await fetch(API + "?lookup=" + encodeURIComponent(query));
+    const data = await res.json();
+    lookup = { query, matches: data.matches || [], chosen: "" };
+    if (lookup.matches.length === 1) lookup.chosen = lookup.matches[0].symbol;
+  } catch {
+    lookup = { query, matches: [], chosen: "", failed: true };
+  }
+  if ($("fTicker").value.trim().toUpperCase() === query) renderMatches();
+  return lookup;
+}
+
+function renderMatches() {
+  const el = $("tickerMatches");
+  const { query, matches, chosen } = lookup;
+  if (!query) { el.innerHTML = ""; return; }
+  if (lookup.failed) { el.textContent = "Couldn't check that ticker right now. You can still save it."; return; }
+  if (!matches.length) { el.textContent = `No company found for ${query}. Check the ticker in Trading 212. London shares end in .L.`; return; }
+  const intro = matches.length > 1 ? `<span class="small">${esc(query)} matches more than one company. Tap yours:</span>` : "";
+  el.innerHTML = intro + matches.map((m) => `<button type="button" class="match" data-symbol="${esc(m.symbol)}" aria-pressed="${m.symbol === chosen}">
+    <span><strong>${esc(m.symbol)}</strong> ${esc(m.name)}</span><small>${esc(m.exchange)}${m.price ? ", " + gbp(m.price) + " now" : ""}</small></button>`).join("");
+}
+
+function showMsg(text, kind) { const m = $("fMsg"); m.textContent = text; m.className = "msg " + (kind || ""); }
+
+async function submitTrade(e) {
+  e.preventDefault();
+  const trader = $("fTrader").value;
+  const typed = $("fTicker").value.trim().toUpperCase();
+  const qty = parseFloat($("fQty").value);
+  const total = parseFloat($("fTotal").value);
+  const date = $("fDate").value;
+  if (!typed) return showMsg("Enter a ticker.", "err");
+  if (!(qty > 0)) return showMsg("Enter the number of shares (Quantity in Trading 212).", "err");
+  if (!(total > 0)) return showMsg("Enter the £ total of the order.", "err");
+  if (!date) return showMsg("Pick a date.", "err");
+  const found = await runLookup(typed);
+  if (found.matches.length > 1 && !found.chosen) return showMsg("Tap which company you mean, under the ticker box.", "err");
+  const match = found.matches.find((m) => m.symbol === found.chosen);
+  const ticker = match ? match.symbol : typed;
+  const typedPrice = parseFloat($("fPrice").value);
+  const price = priceOverridden && typedPrice > 0 ? typedPrice : total / qty;
+  if (side === "sell") {
+    const held = computeTrader(trader).positions[ticker]?.qty || 0;
+    if (qty > held + 1e-9) return showMsg(`${trader} only holds ${shares(held)} ${ticker}.`, "err");
+  }
+  showMsg("");
+  pendingTrade = { trader, side, ticker, qty, price, date };
+  // Catch typos like a $ price or pence: flag it if far from today's price.
+  const far = match?.price && Math.abs(price / match.price - 1) > 0.4;
+  const dateText = new Date(date).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  $("confirmBox").innerHTML = `<h3>Check this ${side === "buy" ? "buy" : "sell"} before saving</h3>
+    <dl>
+      <dt>Trader</dt><dd>${trader}</dd>
+      <dt>Action</dt><dd><span class="tag ${side}">${side === "buy" ? "Buy" : "Sell"}</span></dd>
+      <dt>Company</dt><dd><strong>${esc(ticker)}</strong> ${match ? esc(match.name) + " (" + esc(match.exchange) + ")" : "(not found, so no live price)"}</dd>
+      <dt>Shares</dt><dd class="num">${shares(qty)}</dd>
+      <dt>${side === "buy" ? "Total paid" : "Total received"}</dt><dd class="num">${gbp(total)}</dd>
+      <dt>Price per share</dt><dd class="num">${gbpShare(price)} <span class="small">${priceOverridden ? "(typed in)" : "(£ total ÷ shares)"}</span></dd>
+      ${match?.price ? `<dt>Price now</dt><dd class="num">${gbpShare(match.price)}</dd>` : ""}
+      <dt>Date</dt><dd>${dateText}</dd>
+    </dl>
+    ${priceOverridden ? `<div class="big-warn">⚠ Typed-in price ⚠<small>You overrode the price per share with ${gbpShare(price)}. The site would have used ${gbpShare(total / qty)}.</small></div>
+    <label class="trust"><input type="checkbox" id="trustMe"> I solemnly swear I can be trusted with my data</label>` : ""}
+    ${far ? `<p class="warn">The price per share is very different from today's price. Check Shares and Total match the order in Trading 212.</p>` : ""}
+    <div class="confirm-actions">
+      <button type="button" class="secondary" id="cancelTrade">Go back</button>
+      <button type="button" class="primary" id="confirmTrade">Yes, save it</button>
+    </div>`;
+  $("confirmBox").hidden = false;
+  $("fSubmit").hidden = true;
+  $("confirmTrade").onclick = saveTrade;
+  if (priceOverridden) {
+    $("confirmTrade").disabled = true;
+    $("trustMe").onchange = () => { $("confirmTrade").disabled = !$("trustMe").checked; };
+  }
+  $("cancelTrade").onclick = closeConfirm;
+  $("confirmTrade").focus();
+}
+
+let pendingTrade = null;
+
+function closeConfirm() {
+  pendingTrade = null;
+  $("confirmBox").hidden = true;
+  $("confirmBox").innerHTML = "";
+  $("fSubmit").hidden = false;
+}
+
+async function saveTrade() {
+  const t = pendingTrade;
+  if (!t) return;
+  $("confirmTrade").disabled = true;
+  try {
+    await post("trade", t);
+    loadHistory();
+    closeConfirm();
+    showMsg(`Saved: ${t.trader} ${t.side === "buy" ? "bought" : "sold"} ${shares(t.qty)} ${t.ticker} at ${gbpShare(t.price)} a share.`, "ok");
+    priceOverridden = false;
+    $("priceWarn").hidden = true;
+    $("fQty").value = ""; $("fTotal").value = ""; $("fTicker").value = ""; runLookup(""); updateTotal();
+  } catch (err) {
+    closeConfirm();
+    showMsg("Couldn't save: " + err.message, "err");
+  }
+}
+
+async function savePrice(input) {
+  const ticker = input.dataset.ticker;
+  const price = parseFloat(input.value);
+  if (!(price > 0) || price === prices[ticker]?.price) return;
+  try { await post("price", { ticker, price }); }
+  catch (err) { $("status").textContent = "Couldn't save that price: " + err.message; render(); }
+}
+
+async function onLogClick(e) {
+  const id = e.target.dataset.id;
+  if (!id) return;
+  if (pendingDelete !== id) { pendingDelete = id; render(); return; }
+  pendingDelete = null;
+  try { await post("delete", { id }); loadHistory(); }
+  catch (err) { $("status").textContent = "Couldn't delete: " + err.message; render(); }
+}
+
+function init() {
+  $("fTrader").innerHTML = TRADERS.map((n) => `<option>${n}</option>`).join("");
+  $("fDate").value = new Date().toISOString().slice(0, 10);
+  $("sideBuy").onclick = () => setSide("buy");
+  $("sideSell").onclick = () => setSide("sell");
+  $("fQty").oninput = updateTotal; $("fTotal").oninput = updateTotal;
+  // Typing a price overrides the worked-out one; clearing it switches back.
+  $("fPrice").oninput = () => { priceOverridden = $("fPrice").value.trim() !== ""; $("priceWarn").hidden = !priceOverridden; };
+  const editCloses = (e) => { if (pendingTrade && !$("confirmBox").contains(e.target)) closeConfirm(); };
+  $("tradeForm").addEventListener("input", editCloses);
+  $("tradeForm").addEventListener("change", editCloses);
+  $("fTicker").oninput = () => {
+    clearTimeout(lookupTimer);
+    const q = $("fTicker").value.trim().toUpperCase();
+    lookupTimer = setTimeout(() => runLookup(q), 600);
+  };
+  $("tickerMatches").onclick = (e) => {
+    const b = e.target.closest(".match");
+    if (!b) return;
+    lookup.chosen = b.dataset.symbol;
+    renderMatches();
+  };
+  try { if (!localStorage.getItem("leaguePass")) $("guide").open = true; } catch {}
+  $("tradeForm").onsubmit = submitTrade;
+  $("prices").addEventListener("change", (e) => { if (e.target.dataset.ticker) savePrice(e.target); });
+  $("log").addEventListener("click", onLogClick);
+  renderChips($("holdChips"), holdFilter, pickPortfolio, false);
+  $("board").onclick = (e) => {
+    const row = e.target.closest("tr[data-person]");
+    if (!row) return;
+    pickPortfolio(row.dataset.person);
+    renderChips($("holdChips"), holdFilter, pickPortfolio, false);
+    render();
+    $("portfolio").scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  renderChips($("logChips"), logFilter, (n) => (logFilter = n));
+  render();
+  connect();
+}
+
+function getPass() {
+  const typed = $("fPass").value.trim() || $("sPass").value.trim();
+  if (typed) return typed;
+  try { return localStorage.getItem("leaguePass") || ""; } catch { return ""; }
+}
+
+function applyState(state) {
+  trades = state.trades.filter((t) => TRADERS.includes(t.trader) && t.qty > 0 && t.price > 0);
+  prices = state.prices || {};
+  suggestions = state.suggestions || [];
+  renderSuggestions();
+  $("status").textContent = `${trades.length} trade${trades.length === 1 ? "" : "s"} logged. Updated ${new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}.`;
+  if (!document.activeElement?.classList.contains("price-in")) render();
+}
+
+// Sends a write; the Worker replies with the full updated state.
+async function post(action, body) {
+  const pass = getPass();
+  if (!pass) throw new Error("enter the league passphrase first.");
+  // text/plain keeps this a "simple" request, so the browser skips the CORS preflight.
+  const res = await fetch(API, { method: "POST", headers: { "content-type": "text/plain;charset=utf-8" }, body: JSON.stringify({ ...body, action, pass }) });
+  const data = await res.json().catch(() => ({ error: "server error " + res.status }));
+  if (data.error === "Wrong passphrase") throw new Error("wrong passphrase.");
+  if (data.error) throw new Error(data.error);
+  try { localStorage.setItem("leaguePass", pass); } catch {}
+  $("fPass").value = ""; $("sPass").value = ""; $("sPassLabel").hidden = true;
+  $("fPass").placeholder = "Saved on this device";
+  applyState(data);
+}
+
+async function refresh() {
+  try {
+    const res = await fetch(API);
+    applyState(await res.json());
+  } catch {
+    $("status").textContent = "Couldn't reach the league server. Retrying in 30s.";
+  }
+}
+
+function renderSuggestions() {
+  const fmt = (t) => new Date(t).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  $("suggList").innerHTML = suggestions.length ? suggestions.map((s) => `<article class="sugg">
+    <div class="sugg-meta"><span><strong>${esc(s.author)}</strong>, ${fmt(s.createdAt)}</span><span class="pill">${s.reply ? "Answered" : "Waiting for reply"}</span></div>
+    <p>${esc(s.text)}</p>
+    ${s.reply ? `<div class="sugg-reply"><strong>Reply</strong> <span class="small">${fmt(s.repliedAt)}</span><p>${esc(s.reply)}</p></div>` : ""}
+  </article>`).join("") : `<p class="empty">No suggestions yet.</p>`;
+}
+
+async function submitSuggestion(e) {
+  e.preventDefault();
+  const author = $("sAuthor").value;
+  const text = $("sText").value.trim();
+  const msg = (t, k) => { $("sMsg").textContent = t; $("sMsg").className = "msg " + (k || ""); };
+  if (!text) return msg("Write your suggestion first.", "err");
+  $("sSubmit").disabled = true;
+  try {
+    await post("suggest", { author, text });
+    $("sText").value = "";
+    msg("Posted. Thanks!", "ok");
+  } catch (err) {
+    msg("Couldn't post: " + err.message, "err");
+  }
+  $("sSubmit").disabled = false;
+}
+
+function connect() {
+  $("sAuthor").innerHTML = TRADERS.map((n) => `<option>${n}</option>`).join("");
+  try { if (localStorage.getItem("leaguePass")) $("sPassLabel").hidden = true; } catch {}
+  $("suggForm").onsubmit = submitSuggestion;
+  try { if (localStorage.getItem("leaguePass")) $("fPass").placeholder = "Saved on this device"; } catch {}
+  refresh();
+  setInterval(refresh, 30000);
+  loadHistory();
+  setInterval(loadHistory, 10 * 60 * 1000);
+  let lastW = 0;
+  new ResizeObserver(() => { const w = $("race").clientWidth; if (w !== lastW) { lastW = w; renderRace(); } }).observe($("race"));
+}
+
+
+// ---------- Race chart: everyone's return over time, with their face at the end of the line ----------
+const FACE = (n) => "../faces/" + n + ".jpg";
+const PERSON_COLOR = (n) => `var(--p${TRADERS.indexOf(n) + 1})`;
+let hist = { series: {} };
+let raceDrawn = false;
+
+async function loadHistory() {
+  try {
+    const res = await fetch(API + "?history=1");
+    hist = await res.json();
+    renderRace();
+  } catch {}
+}
+
+// Same maths as computeTrader, but only counting trades up to `day` and valuing at `priceOf`.
+function returnAt(name, day, priceOf) {
+  const positions = {};
+  let realised = 0, inMarket = 0, peak = 0;
+  for (const t of sortedTrades()) {
+    if (t.trader !== name || t.date > day) continue;
+    const p = positions[t.ticker] || { qty: 0, cost: 0, last: t.price };
+    p.last = t.price;
+    if (t.side === "buy") { p.qty += t.qty; p.cost += t.qty * t.price; inMarket += t.qty * t.price; }
+    else {
+      const avg = p.qty > 0 ? p.cost / p.qty : t.price;
+      const q = Math.min(t.qty, p.qty);
+      realised += (t.price - avg) * q; p.cost -= avg * q; p.qty -= q; inMarket -= avg * q;
+      if (p.qty < 1e-9) { p.qty = 0; p.cost = 0; }
+    }
+    positions[t.ticker] = p;
+    if (inMarket > peak) peak = inMarket;
+  }
+  let unrealised = 0;
+  for (const [ticker, p] of Object.entries(positions)) {
+    if (p.qty <= 0) continue;
+    unrealised += p.qty * (priceOf(ticker) ?? p.last) - p.cost;
+  }
+  return peak > 0 ? (realised + unrealised) / peak : 0;
+}
+
+// Last known price at or before time `ms`, or null.
+function priceAtTime(ticker, ms) {
+  const s = hist.series?.[ticker];
+  if (!s || !s.length || s[0][0] > ms) return null;
+  let lo = 0, hi = s.length - 1;
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (s[mid][0] <= ms) lo = mid; else hi = mid - 1; }
+  return s[lo][1];
+}
+
+function raceData() {
+  if (!trades.length) return null;
+  const firstDay = sortedTrades()[0].date;
+  const start = Date.parse(firstDay + "T00:00:00Z");
+  const now = Date.now();
+  const hour = 3600000;
+  const stamps = new Set([start]);
+  for (const s of Object.values(hist.series || {})) for (const [t] of s) if (t >= start && t < now) stamps.add(Math.floor(t / hour) * hour);
+  let times = [...stamps].sort((a, b) => a - b);
+  if (times.length > 300) { const step = times.length / 300; times = Array.from({ length: 300 }, (_, i) => times[Math.floor(i * step)]); }
+  const points = times.map((t) => {
+    const day = new Date(t).toISOString().slice(0, 10);
+    const row = { t };
+    for (const n of TRADERS) row[n] = returnAt(n, day, (tk) => priceAtTime(tk, t));
+    return row;
+  });
+  // Finish on live prices so the line ends where the standings are.
+  const live = { t: now };
+  for (const n of TRADERS) live[n] = computeTrader(n).ret;
+  points.push(live);
+  return points;
+}
+
+function niceStep(span) {
+  for (const s of [0.0025, 0.005, 0.01, 0.02, 0.025, 0.05, 0.1, 0.2, 0.25, 0.5, 1]) if (span / s <= 5) return s;
+  return 1;
+}
+
+function renderRace() {
+  const box = $("race"), svg = $("raceSvg");
+  box.querySelectorAll(".face,.tip").forEach((el) => el.remove());
+  const pts = raceData();
+  const W = box.clientWidth || 600;
+  const H = W < 500 ? 280 : 360;
+  if (!pts) {
+    svg.setAttribute("viewBox", `0 0 ${W} 120`); svg.setAttribute("height", 120);
+    svg.innerHTML = `<text x="0" y="60" fill="var(--ink-2)" font-size="15">The race starts with the first logged trade.</text>`;
+    $("raceKey").innerHTML = "";
+    return;
+  }
+  const m = { l: 52, r: 66, t: 16, b: 30 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  let lo = 0, hi = 0;
+  for (const p of pts) for (const n of TRADERS) { lo = Math.min(lo, p[n]); hi = Math.max(hi, p[n]); }
+  const pad = Math.max((hi - lo) * 0.12, 0.004);
+  lo -= pad; hi += pad;
+  const step = niceStep(hi - lo);
+  lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+  const t0 = pts[0].t, t1 = pts[pts.length - 1].t;
+  const x = (t) => m.l + (t1 === t0 ? iw : ((t - t0) / (t1 - t0)) * iw);
+  const y = (v) => m.t + ((hi - v) / (hi - lo)) * ih;
+
+  // Gridlines and y labels
+  let grid = "", ylab = "";
+  for (let v = lo; v <= hi + 1e-9; v += step) {
+    const yy = y(v).toFixed(1);
+    if (Math.abs(v) > 1e-9) grid += `<line x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}"/>`;
+    ylab += `<text x="${m.l - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle">${(v * 100).toFixed(step < 0.01 ? 1 : 0)}%</text>`;
+  }
+  // X labels: hours for a short race, days otherwise
+  const spanH = (t1 - t0) / 3600000;
+  const fmtX = spanH <= 36 ? { hour: "2-digit", minute: "2-digit" } : { day: "numeric", month: "short" };
+  const nx = Math.max(2, Math.min(6, Math.floor(iw / 90)));
+  let xlab = "";
+  for (let i = 0; i <= nx; i++) {
+    const t = t0 + ((t1 - t0) * i) / nx;
+    xlab += `<text x="${x(t).toFixed(1)}" y="${H - 8}" text-anchor="${i === 0 ? "start" : i === nx ? "end" : "middle"}">${new Date(t).toLocaleString("en-GB", fmtX)}</text>`;
+  }
+
+  // Lines, plus where each face sits (pushed apart so they never overlap)
+  const ends = TRADERS.map((n) => ({ n, v: pts[pts.length - 1][n], y: y(pts[pts.length - 1][n]) }));
+  const placed = [...ends].sort((a, b) => a.y - b.y);
+  const gap = 48, top = m.t + 22, bottom = H - m.b - 6;
+  placed.forEach((e, i) => { e.fy = Math.max(e.y, i ? placed[i - 1].fy + gap : top); });
+  for (let i = placed.length - 1; i >= 0; i--) placed[i].fy = Math.min(placed[i].fy, i < placed.length - 1 ? placed[i + 1].fy - gap : bottom);
+  const faceX = W - 26;
+  let lines = "", leads = "";
+  for (const e of ends) {
+    const d = pts.map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)},${y(p[e.n]).toFixed(1)}`).join("");
+    lines += `<path class="line${raceDrawn ? "" : " draw"}" d="${d}" stroke="${PERSON_COLOR(e.n)}" pathLength="1" style="--len:1"/>`;
+    leads += `<line class="lead" x1="${W - m.r + 4}" y1="${e.y.toFixed(1)}" x2="${faceX - 24}" y2="${e.fy.toFixed(1)}" stroke="${PERSON_COLOR(e.n)}"/>`;
+  }
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("height", H);
+  svg.innerHTML = `<g class="grid">${grid}</g><line class="zero" x1="${m.l}" x2="${W - m.r}" y1="${y(0)}" y2="${y(0)}"/>
+    <g class="axis">${ylab}${xlab}</g>${leads}${lines}
+    <line class="cross" id="cross" y1="${m.t}" y2="${H - m.b}" hidden/><g id="crossDots"></g>
+    <rect id="hit" x="${m.l}" y="0" width="${iw}" height="${H}" fill="transparent"/>`;
+  raceDrawn = true;
+
+  for (const e of placed) {
+    const mood = e.v > 0.0005 ? "up" : e.v < -0.0005 ? "down" : "";
+    const f = document.createElement("div");
+    f.className = "face " + mood;
+    f.style.left = faceX + "px"; f.style.top = e.fy + "px";
+    f.title = `${e.n}: ${pct(e.v)}`;
+    f.innerHTML = `<img src="${FACE(e.n)}" alt="${e.n}"><span class="mood" aria-hidden="true">${mood === "up" ? "😄" : mood === "down" ? "😢" : "😐"}</span>`;
+    box.appendChild(f);
+  }
+  $("raceKey").innerHTML = [...ends].sort((a, b) => b.v - a.v).map((e) =>
+    `<span><i class="dot" style="background:${PERSON_COLOR(e.n)}"></i>${e.n} <strong class="num ${tone(e.v)}">${pct(e.v)}</strong></span>`).join("");
+
+  // Hover / drag: crosshair with everyone's return at that moment
+  const tip = document.createElement("div");
+  tip.className = "tip"; tip.hidden = true; box.appendChild(tip);
+  const hit = $("hit");
+  const show = (ev) => {
+    const r = svg.getBoundingClientRect();
+    const px = ((ev.clientX - r.left) / r.width) * W;
+    let best = 0;
+    for (let i = 1; i < pts.length; i++) if (Math.abs(x(pts[i].t) - px) < Math.abs(x(pts[best].t) - px)) best = i;
+    const p = pts[best], cx = x(p.t);
+    const cross = $("cross");
+    cross.setAttribute("x1", cx); cross.setAttribute("x2", cx); cross.removeAttribute("hidden");
+    $("crossDots").innerHTML = TRADERS.map((n) => `<circle cx="${cx}" cy="${y(p[n])}" r="4.5" fill="${PERSON_COLOR(n)}" stroke="var(--paper)" stroke-width="2"/>`).join("");
+    const when = best === pts.length - 1 ? "Now" : new Date(p.t).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    tip.innerHTML = `<strong>${when}</strong>` + [...TRADERS].sort((a, b) => p[b] - p[a]).map((n) =>
+      `<div><span><i class="dot" style="display:inline-block;background:${PERSON_COLOR(n)}"></i> ${n}</span><span class="num ${tone(p[n])}">${pct(p[n])}</span></div>`).join("");
+    tip.hidden = false;
+    const left = (cx / W) * r.width;
+    tip.style.left = Math.min(Math.max(left - 80, 0), r.width - 170) + "px";
+    tip.style.top = "8px";
+  };
+  const hide = () => { tip.hidden = true; $("cross").setAttribute("hidden", ""); $("crossDots").innerHTML = ""; };
+  hit.addEventListener("pointermove", show);
+  hit.addEventListener("pointerdown", show);
+  hit.addEventListener("pointerleave", hide);
+}
+
+init();
+</script>

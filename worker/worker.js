@@ -3,6 +3,7 @@
  *
  *   GET            -> {trades, prices}   (also refreshes live prices every 5 min)
  *   GET ?lookup=X  -> {matches: [{symbol, name, exchange, price}]}  (tries X and X.L)
+ *   GET ?history=1 -> {series: {ticker: [[ms, priceGbp], ...]}}      (for the race chart, cached 30 min)
  *   POST {action: "trade",  pass, trader, side, ticker, qty, price, date}
  *   POST {action: "delete", pass, id}
  *   POST {action: "price",  pass, ticker, price}
@@ -69,6 +70,41 @@ async function loadState(db) {
   return { trades, prices, suggestions };
 }
 
+async function gbpRate(currency, fxCache) {
+  if (currency === "GBP") return 1;
+  if (currency === "GBp" || currency === "GBX") return 0.01;
+  if (!(currency in fxCache)) fxCache[currency] = (await quote(currency + "GBP=X"))?.price || null;
+  return fxCache[currency];
+}
+
+// Hourly closes (daily once the challenge is over 60 days old) since each ticker's first trade.
+// Uses today's exchange rate for non-£ stocks, which is close enough for a chart.
+async function history(db) {
+  const cached = await db.prepare("SELECT value, updatedAt FROM cache WHERE key = 'history'").first();
+  if (cached && Date.now() - cached.updatedAt < 30 * 60 * 1000) return JSON.parse(cached.value);
+  const { results } = await db.prepare("SELECT ticker, MIN(date) AS first FROM trades GROUP BY ticker LIMIT 50").all();
+  const fxCache = {};
+  const now = Math.floor(Date.now() / 1000);
+  const series = {};
+  for (const { ticker, first } of results) {
+    const start = Math.floor(Date.parse(first + "T00:00:00Z") / 1000);
+    const interval = now - start > 60 * 86400 ? "1d" : "1h";
+    const url = "https://query1.finance.yahoo.com/v8/finance/chart/" + encodeURIComponent(ticker) + `?period1=${start}&period2=${now}&interval=${interval}`;
+    try {
+      const r = (await (await fetch(url, { headers: { "user-agent": "Mozilla/5.0" } })).json()).chart?.result?.[0];
+      const rate = r && (await gbpRate(r.meta.currency, fxCache));
+      if (!r?.timestamp || !rate) continue;
+      const closes = r.indicators.quote[0].close;
+      series[ticker] = r.timestamp
+        .map((t, i) => (closes[i] == null ? null : [t * 1000, Math.round(closes[i] * rate * 10000) / 10000]))
+        .filter(Boolean);
+    } catch {}
+  }
+  const data = { series };
+  await db.prepare("INSERT OR REPLACE INTO cache (key, value, updatedAt) VALUES ('history', ?, ?)").bind(JSON.stringify(data), Date.now()).run();
+  return data;
+}
+
 // "TSCO" could be Tractor Supply (US) or Tesco (TSCO.L), so return every match.
 async function lookup(raw) {
   const symbol = raw.trim().toUpperCase().slice(0, 12);
@@ -99,6 +135,7 @@ export default {
     if (request.method === "GET") {
       const symbol = new URL(request.url).searchParams.get("lookup");
       if (symbol !== null) return reply({ matches: await lookup(symbol) });
+      if (new URL(request.url).searchParams.has("history")) return reply(await history(db));
       await refreshQuotes(db);
       return reply(await loadState(db));
     }
@@ -125,10 +162,12 @@ export default {
       if (!valid) return reply({ error: "Invalid trade" }, 400);
       await db.prepare("INSERT INTO trades (id, trader, side, ticker, qty, price, date, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
         .bind(crypto.randomUUID(), body.trader, body.side, ticker, qty, price, date, Date.now()).run();
+      await db.prepare("DELETE FROM cache").run();
       // Get a live price for a new ticker on the next load.
       await db.prepare("DELETE FROM meta WHERE key = 'quotedAt'").run();
     } else if (body.action === "delete") {
       await db.prepare("DELETE FROM trades WHERE id = ?").bind(String(body.id)).run();
+      await db.prepare("DELETE FROM cache").run();
     } else if (body.action === "price") {
       const ticker = String(body.ticker || "").trim().toUpperCase();
       const price = Number(body.price);

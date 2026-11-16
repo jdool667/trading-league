@@ -32,3 +32,9 @@ CREATE TABLE IF NOT EXISTS suggestions (
   reply TEXT,
   repliedAt INTEGER
 );
+
+CREATE TABLE IF NOT EXISTS cache (
+  key TEXT PRIMARY KEY,
+  value TEXT,
+  updatedAt INTEGER
+);

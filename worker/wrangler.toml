@@ -12,3 +12,15 @@ database_id = "59161593-fc8c-470f-8695-80cd5feba9a8"
 
 [vars]
 ALLOWED_ORIGIN = "https://jdool667.github.io"
+
+# Test copy: npx wrangler@4.20.0 deploy --env staging
+[env.staging]
+name = "trading-league-staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "trading-league-staging"
+database_id = "987cf053-4666-4d7b-814a-a89e131f47f9"
+
+[env.staging.vars]
+ALLOWED_ORIGIN = "https://jdool667.github.io"
