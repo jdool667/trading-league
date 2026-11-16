@@ -51,16 +51,16 @@ section.sec>h2:first-child,.sec-head,.prices>summary{border-top:1px solid var(--
 .race .grid line{stroke:var(--rule);stroke-width:1}
 .race .zero{stroke:var(--ink);stroke-width:1}
 .race .axis text{fill:var(--ink-2);font-size:12px;font-family:var(--sans)}
-.race .line{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.race .line{fill:none;stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
 .race .lead{stroke-width:1;stroke-dasharray:2 3}
 .race .cross{stroke:var(--ink-2);stroke-width:1}
-.face{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;border:2px solid var(--rule);background:var(--field);box-shadow:0 0 0 3px var(--paper);transition:top .4s ease}
+.face{position:absolute;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;border:2px solid var(--rule);background:var(--field);box-shadow:0 0 0 3px var(--paper);transition:top .4s ease}
 .face img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
 .face.up{border-color:var(--up)}.face.down{border-color:var(--down)}
-.face .mood{position:absolute;right:-7px;bottom:-5px;font-size:15px;line-height:1}
+.face .mood{position:absolute;right:-6px;bottom:-4px;font-size:18px;line-height:1}
 .tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:8px 12px;font-size:.85rem;box-shadow:0 8px 24px rgba(28,36,51,.10);min-width:160px;z-index:2}
 .tip div{display:flex;justify-content:space-between;gap:12px}
-.key{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:.92rem;color:var(--ink-2)}
+.key{display:flex;flex-wrap:wrap;gap:8px 24px;font-size:1rem;color:var(--ink-2)}
 .key span{display:inline-flex;align-items:center;gap:7px}
 .key strong{font-weight:600}
 .dot{width:9px;height:9px;border-radius:50%;flex:none}
@@ -806,14 +806,14 @@ function renderRace() {
   box.querySelectorAll(".face,.tip").forEach((el) => el.remove());
   const pts = raceData();
   const W = box.clientWidth || 600;
-  const H = W < 500 ? 280 : 360;
+  const H = W < 500 ? 400 : 540;
   if (!pts) {
     svg.setAttribute("viewBox", `0 0 ${W} 120`); svg.setAttribute("height", 120);
     svg.innerHTML = `<text x="0" y="60" fill="var(--ink-2)" font-size="15">The race starts with the first logged trade.</text>`;
     $("raceKey").innerHTML = "";
     return;
   }
-  const m = { l: 52, r: 66, t: 16, b: 30 };
+  const m = { l: 52, r: 78, t: 20, b: 32 };
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
   let lo = 0, hi = 0;
   for (const p of pts) for (const n of TRADERS) { lo = Math.min(lo, p[n]); hi = Math.max(hi, p[n]); }
@@ -849,15 +849,15 @@ function renderRace() {
   // Lines, plus where each face sits (pushed apart so they never overlap)
   const ends = TRADERS.map((n) => ({ n, v: pts[pts.length - 1][n], y: y(pts[pts.length - 1][n]) }));
   const placed = [...ends].sort((a, b) => a.y - b.y);
-  const gap = 48, top = m.t + 22, bottom = H - m.b - 6;
+  const gap = 60, top = m.t + 28, bottom = H - m.b - 8;
   placed.forEach((e, i) => { e.fy = Math.max(e.y, i ? placed[i - 1].fy + gap : top); });
   for (let i = placed.length - 1; i >= 0; i--) placed[i].fy = Math.min(placed[i].fy, i < placed.length - 1 ? placed[i + 1].fy - gap : bottom);
-  const faceX = W - 26;
+  const faceX = W - 30;
   let lines = "", leads = "";
   for (const e of ends) {
     const d = pts.map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)},${y(p[e.n]).toFixed(1)}`).join("");
     lines += `<path class="line${raceDrawn ? "" : " draw"}" d="${d}" stroke="${PERSON_COLOR(e.n)}" pathLength="1" style="--len:1"/>`;
-    leads += `<line class="lead" x1="${W - m.r + 4}" y1="${e.y.toFixed(1)}" x2="${faceX - 24}" y2="${e.fy.toFixed(1)}" stroke="${PERSON_COLOR(e.n)}"/>`;
+    leads += `<line class="lead" x1="${W - m.r + 4}" y1="${e.y.toFixed(1)}" x2="${faceX - 30}" y2="${e.fy.toFixed(1)}" stroke="${PERSON_COLOR(e.n)}"/>`;
   }
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.setAttribute("height", H);
