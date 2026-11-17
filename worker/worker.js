@@ -120,7 +120,7 @@ async function lookup(raw) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const db = env.DB;
     const cors = {
       "access-control-allow-origin": env.ALLOWED_ORIGIN || "*",
@@ -179,6 +179,14 @@ export default {
       if (!TRADERS.includes(body.author) || !text) return reply({ error: "Invalid suggestion" }, 400);
       await db.prepare("INSERT INTO suggestions (id, author, text, createdAt) VALUES (?, ?, ?, ?)")
         .bind(crypto.randomUUID(), body.author, text, Date.now()).run();
+      // Telegram alert for each new suggestion (only set on the live API, so tests stay quiet).
+      if (env.TELEGRAM_TOKEN && env.TELEGRAM_CHAT) {
+        ctx.waitUntil(fetch(`https://api.telegram.org/bot${env.TELEGRAM_TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT, text: `Suggestion from ${body.author}:\n\n${text}` }),
+        }));
+      }
     } else {
       return reply({ error: "Unknown action" }, 400);
     }

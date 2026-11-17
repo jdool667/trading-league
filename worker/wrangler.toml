@@ -3,6 +3,7 @@ main = "worker.js"
 compatibility_date = "2026-08-20"
 
 # Passphrase: npx wrangler@4.20.0 secret put PASS
+# Suggestion alerts on Telegram: npx wrangler@4.20.0 secret put TELEGRAM_TOKEN (and TELEGRAM_CHAT)
 # Schema:     npx wrangler@4.20.0 d1 execute trading-league --remote --file schema.sql
 
 [[d1_databases]]
