@@ -214,7 +214,7 @@ button{font:inherit;cursor:pointer}
       <thead><tr><th></th><th>Trader</th><th class="r">Balance</th><th class="r">Total P&amp;L</th><th class="r">Return</th><th class="r hide-sm">Realised</th><th class="r hide-sm">Unrealised</th><th class="r hide-sm">Open</th></tr></thead>
       <tbody id="board"></tbody>
     </table></div>
-    <p class="small">Balance is what the account is worth now: the money put in plus total P&amp;L, so it matches the Trading 212 total (as long as no extra cash is sitting unspent). Return is total P&amp;L divided by the money put in, which is the most that person has had in the market at once. Tap a name to open their portfolio.</p>
+    <p class="small">Balance is what the account is worth now. Everyone put in £10, and the few pence not spent on trades went on fees. Return is total P&amp;L divided by the most that person has had in the market at once, so fees don’t count against it. Tap a name to open their portfolio.</p>
   </section>
 
   <section class="sec" id="portfolio" aria-labelledby="port-h">
@@ -294,6 +294,8 @@ button{font:inherit;cursor:pointer}
 
 <script>
 const TRADERS = ["Jack", "Perez", "Bell", "Brown", "Ethan"];
+// Everyone deposited £10. Anything not spent on trades is taken as lost to fees.
+const STAKE = 10;
 let trades = [];
 let prices = {};
 let side = "buy";
@@ -353,7 +355,7 @@ function computeTrader(name) {
     open.push({ trader: name, ticker, qty: p.qty, avg: p.cost / p.qty, price, value, pnl: value - p.cost });
   }
   const total = realised + unrealised;
-  return { name, realised, unrealised, total, ret: peak > 0 ? total / peak : 0, putIn: peak, balance: peak + total, open, positions };
+  return { name, realised, unrealised, total, ret: peak > 0 ? total / peak : 0, putIn: Math.max(STAKE, peak), balance: peak > 0 ? peak + total : STAKE, open, positions };
 }
 
 function currentPrice(ticker) {
