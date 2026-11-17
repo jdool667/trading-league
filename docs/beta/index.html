@@ -49,7 +49,10 @@ section.sec>h2:first-child,.sec-head,.fold>summary{border-top:1px solid var(--ru
 .race{position:relative;touch-action:pan-y}
 .race svg{display:block;width:100%;overflow:visible}
 .race .grid line{stroke:var(--rule);stroke-width:1}
-.race .zero{stroke:var(--ink);stroke-width:1}
+.race .zero{stroke:var(--ink);stroke-width:2}
+.race .axis .zero-label{fill:var(--ink);font-weight:700}
+.race .gain{fill:var(--up);fill-opacity:.06}
+.race .loss{fill:var(--down);fill-opacity:.06}
 .race .axis text{fill:var(--ink-2);font-size:12px;font-family:var(--sans)}
 .race .line{fill:none;stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
 .race .lead{stroke-width:1;stroke-dasharray:2 3}
@@ -840,7 +843,7 @@ function renderRace() {
   for (let v = lo; v <= hi + 1e-9; v += step) {
     const yy = y(v).toFixed(1);
     if (Math.abs(v) > 1e-9) grid += `<line x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}"/>`;
-    ylab += `<text x="${m.l - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle">${(v * 100).toFixed(step < 0.01 ? 1 : 0)}%</text>`;
+    ylab += `<text${Math.abs(v) < 1e-9 ? ' class="zero-label"' : ""} x="${m.l - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle">${(Math.abs(v) < 1e-9 ? 0 : v * 100).toFixed(step < 0.01 ? 1 : 0)}%</text>`;
   }
   // X labels: hours for a short race, days otherwise
   const spanH = (t1 - t0) / 3600000;
@@ -871,7 +874,8 @@ function renderRace() {
   }
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.setAttribute("height", H);
-  svg.innerHTML = `<g class="grid">${grid}</g><line class="zero" x1="${m.l}" x2="${W - m.r}" y1="${y(0)}" y2="${y(0)}"/>
+  const y0 = y(0);
+  svg.innerHTML = `<rect class="gain" x="${m.l}" y="${m.t}" width="${iw}" height="${Math.max(0, y0 - m.t)}"/><rect class="loss" x="${m.l}" y="${y0}" width="${iw}" height="${Math.max(0, H - m.b - y0)}"/><g class="grid">${grid}</g><line class="zero" x1="${m.l}" x2="${W - m.r}" y1="${y(0)}" y2="${y(0)}"/>
     <g class="axis">${ylab}${xlab}</g>${leads}${lines}
     <line class="cross" id="cross" y1="${m.t}" y2="${H - m.b}" hidden/><g id="crossDots"></g>
     <rect id="hit" x="${m.l}" y="0" width="${iw}" height="${H}" fill="transparent"/>`;
