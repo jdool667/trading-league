@@ -210,10 +210,10 @@ button{font:inherit;cursor:pointer}
   <section class="sec" aria-labelledby="table-h">
     <h2 id="table-h">Standings</h2>
     <div class="scroll"><table class="standings">
-      <thead><tr><th></th><th>Trader</th><th class="r">Total P&amp;L</th><th class="r">Return</th><th class="r hide-sm">Realised</th><th class="r hide-sm">Unrealised</th><th class="r">Open</th></tr></thead>
+      <thead><tr><th></th><th>Trader</th><th class="r">Balance</th><th class="r">Total P&amp;L</th><th class="r">Return</th><th class="r hide-sm">Realised</th><th class="r hide-sm">Unrealised</th><th class="r hide-sm">Open</th></tr></thead>
       <tbody id="board"></tbody>
     </table></div>
-    <p class="small">Return is total P&amp;L divided by the most money that person has had in the market at once. Tap a name to open their portfolio.</p>
+    <p class="small">Balance is what the account is worth now: the money put in plus total P&amp;L, so it matches the Trading 212 total (as long as no extra cash is sitting unspent). Return is total P&amp;L divided by the money put in, which is the most that person has had in the market at once. Tap a name to open their portfolio.</p>
   </section>
 
   <section class="sec" id="portfolio" aria-labelledby="port-h">
@@ -352,7 +352,7 @@ function computeTrader(name) {
     open.push({ trader: name, ticker, qty: p.qty, avg: p.cost / p.qty, price, value, pnl: value - p.cost });
   }
   const total = realised + unrealised;
-  return { name, realised, unrealised, total, ret: peak > 0 ? total / peak : 0, open, positions };
+  return { name, realised, unrealised, total, ret: peak > 0 ? total / peak : 0, putIn: peak, balance: peak + total, open, positions };
 }
 
 function currentPrice(ticker) {
@@ -368,11 +368,12 @@ function render() {
   $("board").innerHTML = ranked.map((s, i) => `<tr data-person="${s.name}" title="See ${s.name}'s portfolio">
     <td class="pos">${i + 1}</td>
     <td><span class="mini"><img src="${FACE(s.name)}" alt="">${s.name}</span></td>
+    <td class="r num big">${gbp(s.balance)}<div class="small hide-sm">of ${gbp(s.putIn)} in</div></td>
     <td class="r num big ${tone(s.total)}">${signedGbp(s.total)}</td>
     <td class="r num big ${tone(s.ret)}">${pct(s.ret)}</td>
     <td class="r num hide-sm ${tone(s.realised)}">${signedGbp(s.realised)}</td>
     <td class="r num hide-sm ${tone(s.unrealised)}">${signedGbp(s.unrealised)}</td>
-    <td class="r num">${s.open.length}</td></tr>`).join("");
+    <td class="r num hide-sm">${s.open.length}</td></tr>`).join("");
   renderRace();
 
   // Prices: every ticker someone currently holds
@@ -422,6 +423,7 @@ function renderPortfolio(stats, ranked) {
   const cost = holdings.reduce((t, o) => t + o.avg * o.qty, 0);
   const rank = ranked.findIndex((x) => x.name === s.name) + 1;
   const tiles = `<div class="tiles">
+    <div class="tile"><span>Account balance</span><strong>${gbp(s.balance)}</strong><small>from ${gbp(s.putIn)} put in</small></div>
     <div class="tile"><span>Value now</span><strong>${gbp(value)}</strong><small>${holdings.length} holding${holdings.length === 1 ? "" : "s"}</small></div>
     <div class="tile"><span>Cost</span><strong>${gbp(cost)}</strong><small>what's in the market</small></div>
     <div class="tile"><span>Unrealised</span><strong class="${tone(s.unrealised)}">${signedGbp(s.unrealised)}</strong><small>${cost > 0 ? pct(s.unrealised / cost) : "–"}</small></div>
